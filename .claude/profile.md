@@ -19,3 +19,9 @@ board: pending                                  # Phase 4: Org-Project konnte ni
 deploy: docker
 image: ghcr.io/studis-softwareschmiede/climatedataanalyser
 registry: ghcr
+
+# Validate-Cache (Phase 5 — End-to-End-Smoke gegen db_scripts/000_init_meta.sql)
+adoption_validated_at: 2026-05-31T20:45:35Z
+adoption_validated_dialect: mysql
+adoption_validated_companions: []
+adoption_validated_migration_tool: skeleton
