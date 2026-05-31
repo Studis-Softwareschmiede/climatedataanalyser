@@ -15,7 +15,7 @@ test: "mvn -B -ntp test"
 lint: "mvn -B -ntp -DskipTests verify"
 smoke: "curl -fsS -o /dev/null -w '%{http_code}' http://localhost:8080/actuator/health || true"
 merge_policy: pr
-board: <wird in Phase 4 gesetzt>
+board: pending                                  # Phase 4: Org-Project konnte nicht via Token angelegt werden (Token-Scopes 'repo' + 'workflow', es fehlt 'read:org' + 'project'); Issues sind im Repo (24 Stk., #1-#24), Board manuell nachzuziehen — Workaround dokumentiert im Phase-4-Report
 deploy: docker
 image: ghcr.io/studis-softwareschmiede/climatedataanalyser
 registry: ghcr
