@@ -21,6 +21,7 @@ export class ApiService {
   private ANALYTICS_INIT_URL = `${this.BASE_URL}/analytics/`;
   private ANALYTICS_BY_CLIMATE_ANALYSER_REQUEST_DTO_URL = `${this.BASE_URL}/analytics/request/`;
   private CLIMATE_RECORDS = `${this.BASE_URL}/climateRecords/`;
+  private STATIONS_BBOX_URL = `${this.BASE_URL}/stations/bbox`;
   public dbIsLoaded = false;
 
   constructor(private http: HttpClient) {
@@ -83,6 +84,11 @@ export class ApiService {
       }
     );
     return this.http.request<ClimateAnalyserResponseDto>(req);
+  }
+
+  getBoundingBoxByBundesland(bundesland: string): Observable<any> {
+    const params = new HttpParams().set('bundesland', bundesland);
+    return this.http.get<any>(this.STATIONS_BBOX_URL, {params});
   }
 
   public getClimateRecords(bundesland: string,
