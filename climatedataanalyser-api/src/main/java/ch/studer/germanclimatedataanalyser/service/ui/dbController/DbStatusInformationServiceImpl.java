@@ -18,13 +18,19 @@ public class DbStatusInformationServiceImpl implements DbStatusInformationServic
     public DbStatusInformationServiceImpl() {
     }
 
-    /***
-     * Getter and Setter
-     * @return
+    /**
+     * Live-Status: queryt MONTH_-Count bei jedem Call.
+     * Vorher (afterPropertiesSet-only-Cache): Status blieb beim Bean-Init-Wert
+     * hängen → 'empty' auch nach 745k geladenen Rows → GUI stuck.
      */
     @Override
     public DbStatusEnum getDbStatus() {
-        return dbStatus;
+        try {
+            return getMonthTableCount() > 0 ? DbStatusEnum.loaded : DbStatusEnum.empty;
+        } catch (Exception e) {
+            log.warn("getDbStatus() live-query failed, falling back to cached value: {}", e.getMessage());
+            return dbStatus != null ? dbStatus : DbStatusEnum.empty;
+        }
     }
 
     @Override
