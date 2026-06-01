@@ -1,7 +1,7 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
 import {ApiService} from '../shared/api.service';
 import {HttpEventType} from '@angular/common/http';
-import {DbLoadResponseDto, DbLoadSteps} from './model/DbLoadResponseDto';
+import {DbLoadResponseDto, DbLoadSteps, SkippedRecord} from './model/DbLoadResponseDto';
 import {DbStatus} from '../shared/dbStatusEnum';
 import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
@@ -306,6 +306,20 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     return step.exitMessage.length > 600
       ? step.exitMessage.substring(0, 600) + '\n…'
       : step.exitMessage;
+  }
+
+  /** Skip-Bericht: Records geschickt nach Step gruppiert für Anzeige. */
+  skippedRecords(): SkippedRecord[] {
+    return this.dbLoadResponseDto?.skippedRecords || [];
+  }
+
+  skippedCount(): number {
+    return this.skippedRecords().length;
+  }
+
+  /** Skipped-Records pro Step (für Step-Detail-Anzeige). */
+  skippedForStep(stepName: string): SkippedRecord[] {
+    return this.skippedRecords().filter(r => r.stepName === stepName);
   }
 
   /** Status-Badge-Farbe. */

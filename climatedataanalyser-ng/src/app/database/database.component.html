@@ -136,4 +136,45 @@
     </div>
   </div>
 
+  <!-- Card 3: Skipped-Records-Bericht — nur wenn welche da sind -->
+  <div *ngIf="skippedCount() > 0" class="card shadow-sm mt-4">
+    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+      <span><i class="fas fa-exclamation-triangle me-2"></i>Bericht: Übersprungene Records</span>
+      <span class="badge bg-dark">{{ skippedCount() }} / max. 100</span>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        Diese Records wurden vom Importer NICHT verarbeitet (Parsing-Fehler, fehlende Spalten o.ä.).
+        Spring-Batch toleriert bis zu <strong>100 solche Skips pro Lauf</strong> — danach hard-fail.
+        Jeder Skip wird unten mit Datei, Zeile und Grund aufgeführt.
+      </p>
+
+      <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0">
+          <thead>
+            <tr>
+              <th style="width: 4rem;">#</th>
+              <th>Step</th>
+              <th style="width: 6rem;">Zeile</th>
+              <th>Input</th>
+              <th>Grund / Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of skippedRecords(); let i = index">
+              <td class="text-muted">{{ i + 1 }}</td>
+              <td><code>{{ r.stepName }}</code></td>
+              <td class="text-muted">{{ r.lineNumber || '—' }}</td>
+              <td><code class="small text-break">{{ r.input || '—' }}</code></td>
+              <td><span class="small">{{ r.message }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-footer text-muted small">
+      Skip-Limit: 100. Bei >100 → ganzer Step FAILED (echtes Problem, kein einzelner Bad-Record).
+    </div>
+  </div>
+
 </div>
