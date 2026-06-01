@@ -15,8 +15,10 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.MultiResourceItemReader;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
+import org.springframework.batch.item.file.transform.IncorrectTokenCountException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -125,6 +127,21 @@ public class TemperatureForMonthBatchConfiguration {
                 .processor(temperaturProcessor())
                 .listener(new StepWriterListener())
                 .writer(monthWriter())
+                // Fault-tolerant read: korrupte CSV-Zeilen (z.B. abgeschnittenes File-Ende
+                // nach interrupted FTP-Download) werden geloggt + geskipped, statt den
+                // ganzen Step zu killen. Limit 1000 skips/run — sonst Echtproblem.
+                .faultTolerant()
+                .skip(FlatFileParseException.class)
+                .skip(IncorrectTokenCountException.class)
+                .skipLimit(1000)
+                .listener(new org.springframework.batch.core.SkipListener<MonthFile, Month>() {
+                    @Override
+                    public void onSkipInRead(Throwable t) {
+                        log.warn("SKIP corrupt CSV row in temperature-import: {}", t.getMessage());
+                    }
+                    @Override public void onSkipInWrite(Month item, Throwable t) {}
+                    @Override public void onSkipInProcess(MonthFile item, Throwable t) {}
+                })
                 .build()
                 ;
     }
