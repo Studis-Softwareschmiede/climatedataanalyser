@@ -54,10 +54,20 @@ public class ClimateFtpDataUnziper implements Tasklet, InitializingBean {
         // allZipFiles = getAllZipFiles();
         List<File> allZipFiles = getAllFilesFromDirectoryFiltered(ftpDataFolder, ".zip");
 
-        // Unzip all Zip Data from FTP download
+        // Unzip all Zip Data from FTP download — defensiv: einzelne korrupte/truncated
+        // Files überspringen statt den ganzen Step zu killen (kann passieren nach abgebrochenem
+        // FTP-Download, wo die letzte Datei nur halb geschrieben wurde).
+        int ok = 0, skipped = 0;
         for (File file : allZipFiles) {
-            CompressUtil.unzip(new FileInputStream(file.getPath()), unzipOutputFolde);
+            try (FileInputStream fis = new FileInputStream(file.getPath())) {
+                CompressUtil.unzip(fis, unzipOutputFolde);
+                ok++;
+            } catch (Exception e) {
+                log.warn("Skipping corrupt/truncated ZIP file: {} — {}", file.getName(), e.getMessage());
+                skipped++;
+            }
         }
+        log.info("Unzip step done: {} ok, {} skipped (corrupt or truncated)", ok, skipped);
 
         moveAllClimateDataToInputFilesFolder(unzipOutputFolde, inputFolder);
         return RepeatStatus.FINISHED;
