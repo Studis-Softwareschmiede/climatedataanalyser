@@ -15,12 +15,12 @@ import {AppInfoDto} from '../navigation/model/AppInfoDto';
 export class ApiService {
 
   private BASE_URL = environment.BASE_URL + '/api';
-  private LOAD_DATABASE_URL = `${this.BASE_URL}\\database\\batchImportStart\\`;
-  private LOAD_DATABASE_DATA_URL = `${this.BASE_URL}\\database\\`;
-  private APPINFO_URL = `${this.BASE_URL}\\appInfo\\`;
-  private ANALYTICS_INIT_URL = `${this.BASE_URL}\\analytics\\`;
-  private ANALYTICS_BY_CLIMATE_ANALYSER_REQUEST_DTO_URL = `${this.BASE_URL}\\analytics\\request\\`;
-  private CLIMATE_RECORDS = `${this.BASE_URL}\\climateRecords\\`;
+  private LOAD_DATABASE_URL = `${this.BASE_URL}/database/batchImportStart/`;
+  private LOAD_DATABASE_DATA_URL = `${this.BASE_URL}/database/`;
+  private APPINFO_URL = `${this.BASE_URL}/appInfo/`;
+  private ANALYTICS_INIT_URL = `${this.BASE_URL}/analytics/`;
+  private ANALYTICS_BY_CLIMATE_ANALYSER_REQUEST_DTO_URL = `${this.BASE_URL}/analytics/request/`;
+  private CLIMATE_RECORDS = `${this.BASE_URL}/climateRecords/`;
   public dbIsLoaded = false;
 
   constructor(private http: HttpClient) {
