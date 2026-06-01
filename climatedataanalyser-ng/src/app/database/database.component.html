@@ -64,26 +64,41 @@
             <i [ngClass]="stepIconClass(step.stepStatus)" class="me-2 step-icon"></i>
             <span class="step-name">{{ step.stepName }}</span>
           </span>
-          <small class="text-muted text-end">
+          <small class="text-end d-flex align-items-center gap-2">
+
+            <!-- Dauer (immer wenn Step gelaufen) -->
+            <span *ngIf="stepDuration(step)" class="text-muted">
+              <i class="far fa-clock me-1"></i>{{ stepDuration(step) }}
+            </span>
+
+            <!-- COMPLETED -->
             <ng-container *ngIf="step.stepStatus === 'COMPLETED'">
-              <span class="badge bg-success-subtle text-success-emphasis me-2">done</span>
-              {{ step.readCount }} read · {{ step.writeCount }} written
+              <span class="badge bg-success-subtle text-success-emphasis">done</span>
+              <span class="text-muted counts">{{ stepCounts(step) }}</span>
             </ng-container>
+
+            <!-- FAILED -->
             <ng-container *ngIf="step.stepStatus === 'FAILED'">
-              <span class="badge bg-danger-subtle text-danger-emphasis me-2" title="Step fehlgeschlagen — Details im Server-Log">
-                failed
-              </span>
-              {{ step.readCount }} read · {{ step.writeCount }} written
+              <span class="badge bg-danger-subtle text-danger-emphasis" title="Step fehlgeschlagen — Details im Server-Log">failed</span>
+              <span class="text-muted counts">{{ stepCounts(step) }}</span>
             </ng-container>
+
+            <!-- RUNNING -->
             <ng-container *ngIf="step.stepStatus === 'STARTED' || step.stepStatus === 'STARTING'">
               <span class="badge bg-primary-subtle text-primary-emphasis">running…</span>
+              <span class="text-muted counts" *ngIf="stepCounts(step) !== 'no-op'">{{ stepCounts(step) }}</span>
             </ng-container>
+
+            <!-- STOPPED -->
             <ng-container *ngIf="step.stepStatus === 'STOPPED' || step.stepStatus === 'ABANDONED'">
               <span class="badge bg-warning-subtle text-warning-emphasis">stopped</span>
             </ng-container>
+
+            <!-- PENDING -->
             <ng-container *ngIf="step.stepStatus === 'pending'">
               <span class="text-muted">pending</span>
             </ng-container>
+
           </small>
         </li>
       </ul>
