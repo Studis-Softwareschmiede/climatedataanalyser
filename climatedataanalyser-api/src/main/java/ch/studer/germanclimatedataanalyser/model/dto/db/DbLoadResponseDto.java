@@ -4,7 +4,9 @@ import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbLoadRowMapp
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbStatusEnum;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DbLoadResponseDto {
 
@@ -12,6 +14,7 @@ public class DbLoadResponseDto {
     private String lastLoad;
     private String status;
     private List<DbLoadStep> dbLoadSteps = new ArrayList<DbLoadStep>();
+    private Map<String, Integer> fileCounts = new HashMap<>();  // ftpData, unzipedFiles, inputFiles → counts
 
     public DbLoadResponseDto(List<DbLoadRowMapper.JobExecutionInformation> dbLoadInformation, DbStatusEnum dbStatus) {
         this.mapToDbLoadResponsDto(dbLoadInformation, dbStatus);
@@ -42,10 +45,19 @@ public class DbLoadResponseDto {
                     , jobExecutionInformation.getReadCount()
                     , jobExecutionInformation.getWriteCount()
                     , jobExecutionInformation.getStepStatus()
+                    , jobExecutionInformation.getStepExitMessage()
             );
             dbLoadSteps.add(dbLoadStep);
 
         }
+    }
+
+    public Map<String, Integer> getFileCounts() {
+        return fileCounts;
+    }
+
+    public void setFileCounts(Map<String, Integer> fileCounts) {
+        this.fileCounts = fileCounts;
     }
 
     // TODO remove Code

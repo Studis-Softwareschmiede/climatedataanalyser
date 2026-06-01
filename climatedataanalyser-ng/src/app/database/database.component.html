@@ -70,49 +70,64 @@
     </div>
     <div class="card-body p-0">
       <ul class="list-group list-group-flush">
-        <li *ngFor="let step of mergedSteps()"
-            class="list-group-item d-flex justify-content-between align-items-center">
-          <span>
-            <i [ngClass]="stepIconClass(step.stepStatus)" class="me-2 step-icon"></i>
-            <span class="step-name">{{ step.stepName }}</span>
-          </span>
-          <small class="text-end d-flex align-items-center gap-2">
-
-            <!-- Dauer (immer wenn Step gelaufen) -->
-            <span *ngIf="stepDuration(step)" class="text-muted">
-              <i class="far fa-clock me-1"></i>{{ stepDuration(step) }}
+        <ng-container *ngFor="let step of mergedSteps()">
+          <li class="list-group-item d-flex justify-content-between align-items-center"
+              [class.step-clickable]="step.stepStatus === 'FAILED' && step.exitMessage"
+              (click)="step.stepStatus === 'FAILED' && step.exitMessage ? toggleStepDetails(step.stepName) : null">
+            <span>
+              <i [ngClass]="stepIconClass(step.stepStatus)" class="me-2 step-icon"></i>
+              <span class="step-name">{{ step.stepName }}</span>
+              <i *ngIf="step.stepStatus === 'FAILED' && step.exitMessage"
+                 class="fas fa-info-circle text-danger ms-2"
+                 title="Klick für Error-Details"></i>
             </span>
+            <small class="text-end d-flex align-items-center gap-2">
 
-            <!-- COMPLETED -->
-            <ng-container *ngIf="step.stepStatus === 'COMPLETED'">
-              <span class="badge bg-success-subtle text-success-emphasis">done</span>
-              <span class="text-muted counts">{{ stepCounts(step) }}</span>
-            </ng-container>
+              <!-- Dauer -->
+              <span *ngIf="stepDuration(step)" class="text-muted">
+                <i class="far fa-clock me-1"></i>{{ stepDuration(step) }}
+              </span>
 
-            <!-- FAILED -->
-            <ng-container *ngIf="step.stepStatus === 'FAILED'">
-              <span class="badge bg-danger-subtle text-danger-emphasis" title="Step fehlgeschlagen — Details im Server-Log">failed</span>
-              <span class="text-muted counts">{{ stepCounts(step) }}</span>
-            </ng-container>
+              <!-- COMPLETED -->
+              <ng-container *ngIf="step.stepStatus === 'COMPLETED'">
+                <span class="badge bg-success-subtle text-success-emphasis">done</span>
+                <span class="text-muted counts">{{ stepCounts(step) }}</span>
+              </ng-container>
 
-            <!-- RUNNING -->
-            <ng-container *ngIf="step.stepStatus === 'STARTED' || step.stepStatus === 'STARTING'">
-              <span class="badge bg-primary-subtle text-primary-emphasis">running…</span>
-              <span class="text-muted counts" *ngIf="stepCounts(step) !== 'no-op'">{{ stepCounts(step) }}</span>
-            </ng-container>
+              <!-- FAILED -->
+              <ng-container *ngIf="step.stepStatus === 'FAILED'">
+                <span class="badge bg-danger-subtle text-danger-emphasis" title="Klick für Error-Details">failed</span>
+                <span class="text-muted counts">{{ stepCounts(step) }}</span>
+              </ng-container>
 
-            <!-- STOPPED -->
-            <ng-container *ngIf="step.stepStatus === 'STOPPED' || step.stepStatus === 'ABANDONED'">
-              <span class="badge bg-warning-subtle text-warning-emphasis">stopped</span>
-            </ng-container>
+              <!-- RUNNING -->
+              <ng-container *ngIf="step.stepStatus === 'STARTED' || step.stepStatus === 'STARTING'">
+                <span class="badge bg-primary-subtle text-primary-emphasis">running…</span>
+                <span class="text-muted counts">{{ stepCounts(step) }}</span>
+              </ng-container>
 
-            <!-- PENDING -->
-            <ng-container *ngIf="step.stepStatus === 'pending'">
-              <span class="text-muted">pending</span>
-            </ng-container>
+              <!-- STOPPED -->
+              <ng-container *ngIf="step.stepStatus === 'STOPPED' || step.stepStatus === 'ABANDONED'">
+                <span class="badge bg-warning-subtle text-warning-emphasis">stopped</span>
+              </ng-container>
 
-          </small>
-        </li>
+              <!-- PENDING -->
+              <ng-container *ngIf="step.stepStatus === 'pending'">
+                <span class="text-muted">pending</span>
+              </ng-container>
+
+            </small>
+          </li>
+
+          <!-- Error-Detail (expandiert bei Klick auf FAILED-Step) -->
+          <li *ngIf="isExpanded(step.stepName) && step.exitMessage"
+              class="list-group-item bg-danger-subtle p-3">
+            <strong class="text-danger-emphasis">
+              <i class="fas fa-exclamation-triangle me-1"></i>Error Details — {{ step.stepName }}
+            </strong>
+            <pre class="error-trace mt-2 mb-0">{{ shortExitMessage(step) }}</pre>
+          </li>
+        </ng-container>
       </ul>
     </div>
     <div class="card-footer text-muted small">

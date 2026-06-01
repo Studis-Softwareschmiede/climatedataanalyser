@@ -258,13 +258,54 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     return `${mins}m ${remSecs}s`;
   }
 
-  /** Read/Write-Anzeige: "no-op" wenn 0/0, sonst formatiert. */
+  /**
+   * Read/Write-Anzeige: bei download/unzipFiles zeigt File-Counts aus den Verzeichnissen
+   * (Spring-Batch trackt 0/0 für non-chunk Tasklets), sonst Standard r/w-Counts.
+   */
   stepCounts(step: DbLoadSteps): string {
+    const fc = this.dbLoadResponseDto?.fileCounts || {};
     const r = parseInt(step.readCount || '0', 10);
     const w = parseInt(step.writeCount || '0', 10);
+
+    // Spezial-Fall: download zeigt FTP-File-Count (aus /download/FTPData/)
+    if (step.stepName === 'download' && (r === 0 && w === 0)) {
+      const n = fc['ftpData'] || 0;
+      return n > 0 ? `${n.toLocaleString('de-CH')} ZIP-Files` : 'no files';
+    }
+    // Spezial-Fall: unzipFiles zeigt unzipped/inputFiles count
+    if (step.stepName === 'unzipFiles' && (r === 0 && w === 0)) {
+      const n = fc['inputFiles'] || fc['unzipedFiles'] || 0;
+      return n > 0 ? `${n.toLocaleString('de-CH')} entpackte Files` : 'no files';
+    }
+
     if (r === 0 && w === 0) return 'no-op';
     const fmt = (n: number) => n.toLocaleString('de-CH');
     return `${fmt(r)} read · ${fmt(w)} written`;
+  }
+
+  /**
+   * Klick auf einen FAILED-Step zeigt seine EXIT_MESSAGE (Stack-Trace) im UI an.
+   * Toggle: zweiter Klick schließt.
+   */
+  expandedStep: string | null = null;
+
+  toggleStepDetails(stepName: string): void {
+    this.expandedStep = this.expandedStep === stepName ? null : stepName;
+  }
+
+  isExpanded(stepName: string): boolean {
+    return this.expandedStep === stepName;
+  }
+
+  /**
+   * Liefert die ersten Zeilen der EXIT_MESSAGE — Spring-Batch packt da den ganzen
+   * Stack-Trace rein, das ist im UI zu viel. Nehmen die ersten N Zeichen.
+   */
+  shortExitMessage(step: DbLoadSteps): string {
+    if (!step.exitMessage) return '';
+    return step.exitMessage.length > 600
+      ? step.exitMessage.substring(0, 600) + '\n…'
+      : step.exitMessage;
   }
 
   /** Status-Badge-Farbe. */

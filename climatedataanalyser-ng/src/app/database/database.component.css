@@ -29,6 +29,27 @@
   background-color: #f8f9fa;
 }
 
+.step-clickable {
+  cursor: pointer;
+}
+
+.step-clickable:hover {
+  background-color: #fff5f5 !important;
+}
+
+.error-trace {
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #fff;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  border-left: 3px solid #dc3545;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
 .counts {
   font-variant-numeric: tabular-nums;
   font-size: 0.85rem;
