@@ -1,0 +1,44 @@
+/* AC-F1: Map container — min-height 480px, responsive width */
+.analytics-map-container {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.analytics-map {
+  height: 480px;
+  width: 100%;
+}
+
+/* Coordinate read-only display under map (AC-F9) */
+.analytics-coords {
+  padding: 6px 0;
+  margin-bottom: 10px;
+}
+
+.coord-label {
+  font-family: monospace;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.coord-placeholder {
+  color: #888;
+  font-style: italic;
+}
+
+.coord-tip {
+  color: #666;
+  font-size: 0.85em;
+  margin: 4px 0 0 0;
+}
+
+/* Bundesland section */
+.analytics-bundesland {
+  margin-bottom: 12px;
+}
+
+/* Submit hint */
+.submit-hint {
+  color: #6c757d;
+  font-size: 0.875em;
+}

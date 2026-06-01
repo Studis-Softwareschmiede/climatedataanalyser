@@ -3,9 +3,9 @@ import {ApiService} from '../shared/api.service';
 import {GpsPoint} from './model/GpsPoint';
 import {ClimateAnalyserResponseDto} from './model/ClimateAnalyserResponseDto';
 import {HttpEventType} from '@angular/common/http';
-import {ClimateAnalyserRequest} from './model/ClimateAnalyserRequest';
 import {FormBuilder, FormControl, FormGroup} from '@angular/forms';
-
+import * as L from 'leaflet';
+import 'leaflet-draw';
 
 @Component({
   selector: 'app-analytics',
@@ -17,59 +17,144 @@ export class AnalyticsComponent implements OnInit {
   bundeslaender: Array<string>;
   selectedBundesland: string;
   climateAnalyserResponseDto: ClimateAnalyserResponseDto;
-  climateAnalyserRequestDto: ClimateAnalyserRequest;
   angForm: FormGroup;
-  private gps1: GpsPoint;
-  private gps2: GpsPoint;
-  private yearOrigine: string;
-  private yearToCompare: string;
+
+  // Map state — public so template can bind [leafletLayer]="drawnItems"
+  leafletOptions: L.MapOptions;
+  leafletDrawOptions: object;
+  drawnItems: L.FeatureGroup;
+
+  // Read-only coordinate display (AC-F9)
+  nwDisplay: string = null;
+  seDisplay: string = null;
+
+  private map: L.Map;
   private fb: FormBuilder;
-  private climateAnalyserRequest: ClimateAnalyserRequest;
 
   constructor(private apiService: ApiService, fb: FormBuilder) {
     this.fb = fb;
     this.createForm();
+    this.initLeafletOptions();
   }
 
   createForm() {
-    // Weisweil   79367 : 48.181837104192695, 7.6906623449884695
-    // Stühlingen 79780 : 47.73683613454628, 8.360463439669749
     this.angForm = this.fb.group({
-      gps1lat: new FormControl('48.181837104192695'),
-      gps1long: new FormControl('7.6906623449884695'),
-      gps2lat: new FormControl('47.73683613454628'),
-      gps2long: new FormControl('8.360463439669749'),
+      gps1lat: new FormControl(''),
+      gps1long: new FormControl(''),
+      gps2lat: new FormControl(''),
+      gps2long: new FormControl(''),
       yearO: new FormControl('1989'),
       yearC: new FormControl('2018')
     });
   }
 
+  initLeafletOptions() {
+    // AC-F2 + AC-F3
+    this.leafletOptions = {
+      layers: [
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 18,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        })
+      ],
+      zoom: 6,
+      center: L.latLng(51.16, 10.45)
+    };
+
+    this.drawnItems = L.featureGroup();
+
+    // AC-F4 + AC-F6: rectangle only, danger-red style
+    this.leafletDrawOptions = {
+      position: 'topleft',
+      draw: {
+        rectangle: {
+          shapeOptions: {
+            color: '#dc3545',
+            weight: 2,
+            fillColor: '#dc3545',
+            fillOpacity: 0.3
+          }
+        },
+        polygon: false,
+        polyline: false,
+        circle: false,
+        marker: false,
+        circlemarker: false
+      },
+      edit: {
+        featureGroup: this.drawnItems
+      }
+    };
+  }
+
+  onMapReady(map: L.Map) {
+    this.map = map;
+
+    // AC-F5 + AC-F7 + AC-F8: draw:created → replace old rectangle
+    this.map.on('draw:created', (event: any) => {
+      this.drawnItems.clearLayers();
+      const layer = event.layer;
+      this.drawnItems.addLayer(layer);
+      this.updateCoordsFromLayer(layer);
+    });
+
+    // AC-F14: edit support
+    this.map.on('draw:edited', (event: any) => {
+      event.layers.eachLayer((layer: any) => {
+        this.updateCoordsFromLayer(layer);
+      });
+    });
+
+    this.map.on('draw:deleted', () => {
+      this.nwDisplay = null;
+      this.seDisplay = null;
+      this.angForm.patchValue({gps1lat: '', gps1long: '', gps2lat: '', gps2long: ''});
+    });
+  }
+
+  private updateCoordsFromLayer(layer: L.Rectangle) {
+    const bounds = (layer as L.Rectangle).getBounds();
+    const nw = bounds.getNorthWest();
+    const se = bounds.getSouthEast();
+
+    // AC-F8: fill form controls programmatically
+    this.angForm.patchValue({
+      gps1lat: nw.lat,
+      gps1long: nw.lng,
+      gps2lat: se.lat,
+      gps2long: se.lng
+    });
+
+    // AC-F9: 6 decimal places
+    this.nwDisplay = `NW: ${nw.lat.toFixed(6)}, ${nw.lng.toFixed(6)}`;
+    this.seDisplay = `SE: ${se.lat.toFixed(6)}, ${se.lng.toFixed(6)}`;
+  }
+
+  // AC-F12: submit enabled only when bbox or Bundesland is set
+  get hasSelection(): boolean {
+    const v = this.angForm.value;
+    const hasBox = v.gps1lat !== '' && v.gps1long !== '' && v.gps2lat !== '' && v.gps2long !== '';
+    const hasBundesland = this.selectedBundesland && this.selectedBundesland !== '';
+    return hasBox || hasBundesland;
+  }
+
+  // AC-F13: submit — unchanged backend call
   onClickSubmit() {
-
-    this.climateAnalyserRequest = new ClimateAnalyserRequest(''
-      , new GpsPoint(this.angForm.value.valueOf().gps1long, this.angForm.value.valueOf().gps1lat)
-      , new GpsPoint(this.angForm.value.valueOf().gps2long, this.angForm.value.valueOf().gps2lat)
-      , this.angForm.value.valueOf().yearO
-      , this.angForm.value.valueOf().yearC);
-
-
+    const v = this.angForm.value;
     this.apiService.getAnalyticsByRequest(
-      ''
-      , new GpsPoint(this.angForm.value.valueOf().gps1long, this.angForm.value.valueOf().gps1lat)
-      , new GpsPoint(this.angForm.value.valueOf().gps2long, this.angForm.value.valueOf().gps2lat)
-      , this.angForm.value.valueOf().yearO
-      , this.angForm.value.valueOf().yearC
+      '',
+      new GpsPoint(parseFloat(v.gps1long), parseFloat(v.gps1lat)),
+      new GpsPoint(parseFloat(v.gps2long), parseFloat(v.gps2lat)),
+      v.yearO,
+      v.yearC
     ).subscribe(
       value => {
-
-        switch (value.type) {
-          case HttpEventType.Response:
-            this.climateAnalyserResponseDto = value.body;
-
+        if (value.type === HttpEventType.Response) {
+          this.climateAnalyserResponseDto = value.body;
         }
       },
-      error => {
-        alert('An error occurred ,while getting analytics by GPS coordinates');
+      () => {
+        alert('An error occurred while getting analytics by GPS coordinates');
       }
     );
   }
@@ -79,7 +164,6 @@ export class AnalyticsComponent implements OnInit {
   }
 
   initAnalytics() {
-
     this.apiService.initAnalytics().subscribe({
       next: (value) => {
         this.bundeslaender = value;
@@ -88,32 +172,33 @@ export class AnalyticsComponent implements OnInit {
         alert('An error occurred while init Analytics, trying to get all Bundeslaender from Backend !');
       }
     });
-
   }
 
-  onBundeslaenderDropDownListSelected(selectedBundesland: any) {
-    this.yearOrigine = this.angForm.value.valueOf().yearO;
-    this.yearToCompare = this.angForm.value.valueOf().yearC;
-    this.apiService.getAnalyticsByRequest(
-      selectedBundesland
-      , this.gps1
-      , this.gps2
-      , this.yearOrigine
-      , this.yearToCompare).subscribe(
-      value => {
-
-        switch (value.type) {
-          case HttpEventType.Response:
-            this.climateAnalyserResponseDto = value.body;
-
+  // AC-F11: Bundesland → fetch bbox → draw rectangle on map
+  onBundeslaenderDropDownListSelected(selectedBundesland: string) {
+    if (!selectedBundesland) {
+      return;
+    }
+    this.apiService.getBoundingBoxByBundesland(selectedBundesland).subscribe({
+      next: (bbox) => {
+        this.drawnItems.clearLayers();
+        const nw: [number, number] = [bbox.nw.latitude, bbox.nw.longitude];
+        const se: [number, number] = [bbox.se.latitude, bbox.se.longitude];
+        const rect = L.rectangle([nw, se], {
+          color: '#dc3545',
+          weight: 2,
+          fillColor: '#dc3545',
+          fillOpacity: 0.3
+        });
+        this.drawnItems.addLayer(rect);
+        this.updateCoordsFromLayer(rect);
+        if (this.map) {
+          this.map.fitBounds(rect.getBounds());
         }
       },
-      error => {
-        alert('An error occurred ,while getting analytics by Bundesland: ' + selectedBundesland);
+      error: () => {
+        alert('Could not load bounding box for: ' + selectedBundesland);
       }
-    );
-    selectedBundesland = 'The value ' + selectedBundesland + ' was selected !';
-
+    });
   }
-
 }
