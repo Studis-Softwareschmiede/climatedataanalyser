@@ -1,5 +1,6 @@
 package ch.studer.germanclimatedataanalyser.controller;
 
+import ch.studer.germanclimatedataanalyser.batch.listener.SkippedRecordTracker;
 import ch.studer.germanclimatedataanalyser.model.dto.db.DbLoadResponseDto;
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbLoadInformationService;
 import org.slf4j.Logger;
@@ -35,6 +36,9 @@ public class DataBaseController {
     @Autowired
     JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    SkippedRecordTracker skippedRecordTracker;
+
     private static final Logger log = LoggerFactory.getLogger(DataBaseController.class);
 
     // Reihenfolge wichtig: Spring-Batch FKs zuerst (Children → Parents), dann App-Daten.
@@ -66,12 +70,23 @@ public class DataBaseController {
     @GetMapping("/")
     DbLoadResponseDto dbLoadInformationRequest() {
         DbLoadResponseDto dto = this.dbLoadInformationService.getDbLoadInformation();
-        // File-Counts in den Pipeline-Volumes — User-Feedback: "download" + "unzipFiles" sind
-        // immer 0 read/0 written (Spring-Batch-Eigenheit für non-chunk Tasklets), so dass die
-        // GUI keine Aussage darüber hat ob tatsächlich Files runtergeladen/entpackt wurden.
-        // Wir zählen direkt im Filesystem und liefern's mit.
         dto.setFileCounts(collectFileCounts());
+        // Skipped-Records-Bericht: aktueller (= letzter) Job
+        Long jobId = currentJobExecutionId();
+        if (jobId != null) {
+            dto.setSkippedRecords(skippedRecordTracker.getForJob(jobId));
+        }
         return dto;
+    }
+
+    private Long currentJobExecutionId() {
+        try {
+            Integer id = jdbcTemplate.queryForObject(
+                "SELECT MAX(JOB_EXECUTION_ID) FROM BATCH_JOB_EXECUTION", Integer.class);
+            return id != null ? id.longValue() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private Map<String, Integer> collectFileCounts() {
@@ -130,6 +145,10 @@ public class DataBaseController {
         } finally {
             jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 1");
         }
+
+        // In-Memory Skip-Tracker auch leeren — sonst zeigt der nächste Job-Report
+        // Skipped-Records vom alten Run an.
+        skippedRecordTracker.clearAll();
 
         result.put("cleared", TABLES_TO_TRUNCATE);
         result.put("countsBefore", countsBefore);
