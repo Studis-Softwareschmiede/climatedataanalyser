@@ -21,9 +21,18 @@ public class DbLoadResponseDto {
 
     public void mapToDbLoadResponsDto(List<DbLoadRowMapper.JobExecutionInformation> jobExecutionInformations, DbStatusEnum dbStatus) {
         this.isDbLoaded = dbStatus.name();
+
+        // Empty-State (frische DB, noch nie ein Job-Run): defensiv fallback (closes #28).
+        // Vorher: .get(0) auf leerer Liste → IndexOutOfBoundsException → HTTP 500 → Frontend stuck.
+        if (jobExecutionInformations == null || jobExecutionInformations.isEmpty()) {
+            this.lastLoad = null;
+            this.status = "NEVER_RUN";
+            // dbLoadSteps bleibt leer — Frontend zeigt Pipeline-Skeleton mit 'pending'.
+            return;
+        }
+
         this.lastLoad = jobExecutionInformations.get(0).endTime;
         this.status = jobExecutionInformations.get(0).status;
-
 
         for (DbLoadRowMapper.JobExecutionInformation jobExecutionInformation : jobExecutionInformations) {
             DbLoadStep dbLoadStep = new DbLoadStep(
