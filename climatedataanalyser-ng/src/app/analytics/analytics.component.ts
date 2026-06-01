@@ -1,9 +1,11 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, OnDestroy, OnInit} from '@angular/core';
 import {ApiService} from '../shared/api.service';
 import {GpsPoint} from './model/GpsPoint';
 import {ClimateAnalyserResponseDto} from './model/ClimateAnalyserResponseDto';
 import {HttpEventType} from '@angular/common/http';
 import {FormBuilder, FormControl, FormGroup} from '@angular/forms';
+import {Subject} from 'rxjs';
+import {takeUntil} from 'rxjs/operators';
 import * as L from 'leaflet';
 import 'leaflet-draw';
 
@@ -12,7 +14,7 @@ import 'leaflet-draw';
   templateUrl: './analytics.component.html',
   styleUrls: ['./analytics.component.css']
 })
-export class AnalyticsComponent implements OnInit {
+export class AnalyticsComponent implements OnInit, OnDestroy {
 
   bundeslaender: Array<string>;
   selectedBundesland: string;
@@ -30,6 +32,10 @@ export class AnalyticsComponent implements OnInit {
 
   private map: L.Map;
   private fb: FormBuilder;
+
+  // Lifecycle: unsubscribe all observables on destroy + tear down Leaflet map.
+  // Pattern aus database.component.ts übernommen.
+  private destroy$ = new Subject<void>();
 
   constructor(private apiService: ApiService, fb: FormBuilder) {
     this.fb = fb;
@@ -147,31 +153,48 @@ export class AnalyticsComponent implements OnInit {
       new GpsPoint(parseFloat(v.gps2long), parseFloat(v.gps2lat)),
       v.yearO,
       v.yearC
-    ).subscribe(
-      value => {
-        if (value.type === HttpEventType.Response) {
-          this.climateAnalyserResponseDto = value.body;
+    )
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(
+        value => {
+          if (value.type === HttpEventType.Response) {
+            this.climateAnalyserResponseDto = value.body;
+          }
+        },
+        () => {
+          alert('An error occurred while getting analytics by GPS coordinates');
         }
-      },
-      () => {
-        alert('An error occurred while getting analytics by GPS coordinates');
-      }
-    );
+      );
   }
 
   ngOnInit() {
     this.initAnalytics();
   }
 
+  ngOnDestroy() {
+    // 1) signal all takeUntil-piped subscriptions to unsubscribe
+    this.destroy$.next();
+    this.destroy$.complete();
+    // 2) tear down Leaflet — without this, the map keeps tile-event listeners
+    //    on window/document and accumulates per route-navigation.
+    if (this.map) {
+      this.map.off();
+      this.map.remove();
+      this.map = null;
+    }
+  }
+
   initAnalytics() {
-    this.apiService.initAnalytics().subscribe({
-      next: (value) => {
-        this.bundeslaender = value;
-      },
-      error: () => {
-        alert('An error occurred while init Analytics, trying to get all Bundeslaender from Backend !');
-      }
-    });
+    this.apiService.initAnalytics()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (value) => {
+          this.bundeslaender = value;
+        },
+        error: () => {
+          alert('An error occurred while init Analytics, trying to get all Bundeslaender from Backend !');
+        }
+      });
   }
 
   // AC-F11: Bundesland → fetch bbox → draw rectangle on map
@@ -179,26 +202,28 @@ export class AnalyticsComponent implements OnInit {
     if (!selectedBundesland) {
       return;
     }
-    this.apiService.getBoundingBoxByBundesland(selectedBundesland).subscribe({
-      next: (bbox) => {
-        this.drawnItems.clearLayers();
-        const nw: [number, number] = [bbox.nw.latitude, bbox.nw.longitude];
-        const se: [number, number] = [bbox.se.latitude, bbox.se.longitude];
-        const rect = L.rectangle([nw, se], {
-          color: '#dc3545',
-          weight: 2,
-          fillColor: '#dc3545',
-          fillOpacity: 0.3
-        });
-        this.drawnItems.addLayer(rect);
-        this.updateCoordsFromLayer(rect);
-        if (this.map) {
-          this.map.fitBounds(rect.getBounds());
+    this.apiService.getBoundingBoxByBundesland(selectedBundesland)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (bbox) => {
+          this.drawnItems.clearLayers();
+          const nw: [number, number] = [bbox.nw.latitude, bbox.nw.longitude];
+          const se: [number, number] = [bbox.se.latitude, bbox.se.longitude];
+          const rect = L.rectangle([nw, se], {
+            color: '#dc3545',
+            weight: 2,
+            fillColor: '#dc3545',
+            fillOpacity: 0.3
+          });
+          this.drawnItems.addLayer(rect);
+          this.updateCoordsFromLayer(rect);
+          if (this.map) {
+            this.map.fitBounds(rect.getBounds());
+          }
+        },
+        error: () => {
+          alert('Could not load bounding box for: ' + selectedBundesland);
         }
-      },
-      error: () => {
-        alert('Could not load bounding box for: ' + selectedBundesland);
-      }
-    });
+      });
   }
 }
