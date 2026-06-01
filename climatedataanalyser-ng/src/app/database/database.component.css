@@ -1,0 +1,56 @@
+.card {
+  border-radius: 0.5rem;
+}
+
+.card-header {
+  font-size: 1.05rem;
+  font-weight: 500;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+}
+
+.step-icon {
+  width: 1.4rem;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.step-name {
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 0.92rem;
+}
+
+.list-group-item {
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
+.list-group-item:hover {
+  background-color: #f8f9fa;
+}
+
+/* Soft-Color Badges für Steps. */
+.badge.bg-success-subtle {
+  background-color: #d1e7dd !important;
+}
+.badge.text-success-emphasis {
+  color: #0a3622 !important;
+}
+.badge.bg-danger-subtle {
+  background-color: #f8d7da !important;
+}
+.badge.text-danger-emphasis {
+  color: #58151c !important;
+}
+.badge.bg-primary-subtle {
+  background-color: #cfe2ff !important;
+}
+.badge.text-primary-emphasis {
+  color: #052c65 !important;
+}
+.badge.bg-warning-subtle {
+  background-color: #fff3cd !important;
+}
+.badge.text-warning-emphasis {
+  color: #664d03 !important;
+}

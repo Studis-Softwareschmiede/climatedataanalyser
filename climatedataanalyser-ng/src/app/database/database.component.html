@@ -1,41 +1,97 @@
-<div class="container">
+<div class="container mt-4">
 
-  <p>{{ message}}</p>
+  <!-- Card 1: Load-Trigger + FTP-Switch -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-primary text-white">
+      <i class="fas fa-database me-2"></i>Database Load
+    </div>
+    <div class="card-body">
 
-  <h2><span class="badge badge-primary">{{currentDbLoadStatus}}</span></h2>
+      <div *ngIf="dbLoadResponseDto" class="mb-3">
+        <div class="row">
+          <div class="col-md-6">
+            <strong>Last run:</strong>
+            <span class="ms-2">{{ dbLoadResponseDto.lastLoad || '(noch nie)' }}</span>
+          </div>
+          <div class="col-md-6">
+            <strong>Status:</strong>
+            <span class="badge ms-2" [ngClass]="statusBadgeClass()">
+              {{ dbLoadResponseDto.status || 'NEVER_RUN' }}
+            </span>
+          </div>
+        </div>
+      </div>
 
-  <p>
-    Last run : {{ dbLoadResponseDto.lastLoad}}
-    Status : {{ dbLoadResponseDto.status}}
-  </p>
+      <div *ngIf="message" class="alert alert-info py-2">{{ message }}</div>
 
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="useFTP" [(ngModel)]="useFTP" [disabled]="isLoading">
+        <label class="form-check-label" for="useFTP">
+          <strong>FTP-Download vom DWD neu holen</strong>
+          <br>
+          <small class="text-muted">
+            opendata.dwd.de — Erstmaliger Load erfordert FTP (~5 min extra).
+            Spätere Re-Loads ohne Häkchen importieren die bestehenden Files neu.
+          </small>
+        </label>
+      </div>
 
-  <table class="table">
-    <thead class="thead-dark">
-      <tr>
-        <th *ngFor="let col of columns">
-          {{col}}
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr mdbTableCol *ngFor="let dbLoadStep of dbLoadResponseDto.dbLoadSteps ">
-        <td *ngFor="let col of columns">
-          {{dbLoadStep[col]}}
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-
-  <!-- Note menu -->
-  <div class="row" style="margin-top:12px;">
-    <div class="col-md-4">
       <button type="button"
               (click)="loadDataBase()"
-              class="btn btn-primary btn-lg"
-              style="margin-left:12px;">Load DataBase
+              [disabled]="isLoading"
+              class="btn btn-primary btn-lg">
+        <i class="fas fa-play me-2" *ngIf="!isLoading"></i>
+        <i class="fas fa-sync fa-spin me-2" *ngIf="isLoading"></i>
+        {{ isLoading ? 'Load läuft...' : 'Load Database' }}
       </button>
+
     </div>
+  </div>
+
+  <!-- Card 2: Pipeline-Status (Skeleton + Live-Steps) -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+      <span><i class="fas fa-tasks me-2"></i>Pipeline-Status</span>
+      <small *ngIf="isLoading" class="text-light">
+        <i class="fas fa-sync fa-spin me-1"></i> refreshing every 2s
+      </small>
+    </div>
+    <div class="card-body p-0">
+      <ul class="list-group list-group-flush">
+        <li *ngFor="let step of mergedSteps()"
+            class="list-group-item d-flex justify-content-between align-items-center">
+          <span>
+            <i [ngClass]="stepIconClass(step.stepStatus)" class="me-2 step-icon"></i>
+            <span class="step-name">{{ step.stepName }}</span>
+          </span>
+          <small class="text-muted text-end">
+            <ng-container *ngIf="step.stepStatus === 'COMPLETED'">
+              <span class="badge bg-success-subtle text-success-emphasis me-2">done</span>
+              {{ step.readCount }} read · {{ step.writeCount }} written
+            </ng-container>
+            <ng-container *ngIf="step.stepStatus === 'FAILED'">
+              <span class="badge bg-danger-subtle text-danger-emphasis me-2" title="Step fehlgeschlagen — Details im Server-Log">
+                failed
+              </span>
+              {{ step.readCount }} read · {{ step.writeCount }} written
+            </ng-container>
+            <ng-container *ngIf="step.stepStatus === 'STARTED' || step.stepStatus === 'STARTING'">
+              <span class="badge bg-primary-subtle text-primary-emphasis">running…</span>
+            </ng-container>
+            <ng-container *ngIf="step.stepStatus === 'STOPPED' || step.stepStatus === 'ABANDONED'">
+              <span class="badge bg-warning-subtle text-warning-emphasis">stopped</span>
+            </ng-container>
+            <ng-container *ngIf="step.stepStatus === 'pending'">
+              <span class="text-muted">pending</span>
+            </ng-container>
+          </small>
+        </li>
+      </ul>
+    </div>
+    <div class="card-footer text-muted small">
+      Pipeline = 5 Steps fix. Status wird beim Lauf live aktualisiert (Polling 2s).
+      Backend-Source: <code>BATCH_STEP_EXECUTION</code>.
+    </div>
+  </div>
 
 </div>
