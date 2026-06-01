@@ -10,6 +10,10 @@ import {takeUntil} from 'rxjs/operators';
 // Polling läuft solange dbLoadResponseDto.status in dieser Menge ist.
 const RUNNING_STATES = new Set(['STARTING', 'STARTED', 'UNKNOWN']);
 
+// Polling-Intervalle: schnell während Job läuft, langsam idle.
+const POLL_FAST_MS = 500;
+const POLL_IDLE_MS = 2000;
+
 @Component({
   selector: 'app-database',
   templateUrl: './database.component.html',
@@ -21,6 +25,7 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   currentDbLoadStatus: DbStatus;
   useFTP: boolean = false;
   isLoading: boolean = false;
+  isClearing: boolean = false;
 
   // Pipeline-Skeleton: fixe 5 Steps, auch wenn das Backend noch keine Job-Run-Daten hat.
   private static readonly PIPELINE_SKELETON = [
@@ -47,13 +52,13 @@ export class DatabaseComponent implements OnInit, OnDestroy {
 
   /**
    * Pollt /api/database/ einmal sofort. Dann nur weiter pollen solange ein Job AKTUELL
-   * läuft (Spring-Batch-Status STARTING/STARTED). Fix vs. vorher: nicht mehr auf
-   * DbStatusEnum-`loading` schauen (das wurde live nie auf 'loading' gesetzt).
+   * läuft (Spring-Batch-Status STARTING/STARTED). Schnelles Polling (500ms) während
+   * Job läuft — fängt auch sub-Sek-Runs ab.
    */
   async refreshStatus(): Promise<void> {
     await this.pollOnce();
     while (this.isJobRunning() && !this.destroy$.closed) {
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, POLL_FAST_MS));
       await this.pollOnce();
     }
     this.isLoading = false;
@@ -88,18 +93,23 @@ export class DatabaseComponent implements OnInit, OnDestroy {
 
   /**
    * Status-Message kombiniert DbStatusEnum + aktuellen Job-Status.
-   * Beispiel: 'DB ist geladen (745k Records), letzter Job-Run FAILED an Step 4.'
    */
   private statusMessage(): string {
     const batchStatus = this.dbLoadResponseDto?.status || 'NEVER_RUN';
     if (RUNNING_STATES.has(batchStatus)) {
-      return '⟳ Job läuft gerade — Pipeline-Status aktualisiert sich alle 2s.';
+      return '⟳ Job läuft gerade — Pipeline-Status aktualisiert sich live.';
     }
     if (batchStatus === 'FAILED') {
-      return '⚠ Letzter Load-Versuch ist fehlgeschlagen. Pipeline-Status zeigt, welcher Step.';
+      const failedStep = this.failedStepName();
+      return failedStep
+        ? `⚠ Letzter Load-Versuch ist fehlgeschlagen an Step "${failedStep}". Details unten.`
+        : '⚠ Letzter Load-Versuch ist fehlgeschlagen.';
     }
     if (batchStatus === 'COMPLETED') {
-      return '✓ Letzter Load-Lauf erfolgreich abgeschlossen.';
+      const total = this.totalRecords();
+      return total > 0
+        ? `✓ Letzter Lauf erfolgreich — ${total.toLocaleString('de-CH')} Records geschrieben.`
+        : '✓ Letzter Lauf erfolgreich (no-op, keine neuen Daten).';
     }
     if (batchStatus === 'STOPPED' || batchStatus === 'ABANDONED') {
       return '⏸ Letzter Load wurde abgebrochen.';
@@ -110,10 +120,30 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     return '';
   }
 
+  private failedStepName(): string {
+    const steps = this.dbLoadResponseDto?.dbLoadSteps || [];
+    const failed = steps.find(s => s.stepStatus === 'FAILED');
+    return failed?.stepName || '';
+  }
+
+  private totalRecords(): number {
+    const steps = this.dbLoadResponseDto?.dbLoadSteps || [];
+    return steps.reduce((sum, s) => sum + (parseInt(s.writeCount || '0', 10)), 0);
+  }
+
   loadDataBase(): void {
     const ftp = this.useFTP ? 'true' : 'false';
     this.isLoading = true;
     this.message = '⟳ Triggering Load…';
+
+    // Sofort optimistische STARTING-Anzeige — falls Backend erst nach >500ms antwortet.
+    if (this.dbLoadResponseDto) {
+      this.dbLoadResponseDto = {
+        ...this.dbLoadResponseDto,
+        status: 'STARTING',
+        dbLoadSteps: []  // Skeleton zeigt dann alle pending
+      };
+    }
 
     this.apiService.loadDataBase(ftp)
       .pipe(takeUntil(this.destroy$))
@@ -122,6 +152,34 @@ export class DatabaseComponent implements OnInit, OnDestroy {
         error: () => {
           this.message = '⚠ Load-Trigger fehlgeschlagen — siehe Browser-Console.';
           this.isLoading = false;
+        },
+      });
+  }
+
+  /**
+   * Truncated alle DB-Tabellen + BATCH_*-Tables, dann startet einen neuen Load
+   * (mit aktuellem useFTP-Wert).
+   */
+  clearAndReload(): void {
+    if (!confirm(
+      'Wirklich alle Daten + Job-History löschen und neu laden?\n\n' +
+      'Truncate auf: CLIMATE, MONTH_, STATION, WEATHER + alle BATCH_*-Tables.'
+    )) return;
+
+    this.isClearing = true;
+    this.message = '⟳ Truncate läuft…';
+
+    this.apiService.clearDatabase()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.isClearing = false;
+          this.message = '✓ Tabellen geleert — starte Re-Load…';
+          this.loadDataBase();
+        },
+        error: (err) => {
+          this.isClearing = false;
+          this.message = `⚠ Truncate fehlgeschlagen: ${err?.message || 'unbekannt'}`;
         },
       });
   }
@@ -150,9 +208,7 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Step-Icon: pending / running / done / failed / stopped.
-   */
+  /** Step-Icon: pending / running / done / failed / stopped. */
   stepIconClass(status: string): string {
     switch (status) {
       case 'COMPLETED': return 'fas fa-check-circle text-success';
@@ -166,9 +222,7 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Step-Dauer in lesbarem Format ("4m 35s", "0.3s", "—" wenn nicht gelaufen).
-   */
+  /** Step-Dauer ("4m 35s", "0.3s", "—" wenn nicht gelaufen). */
   stepDuration(step: DbLoadSteps): string {
     if (!step.startTime || !step.stepEndTime) return '';
     const start = new Date(step.startTime.replace(' ', 'T')).getTime();
@@ -181,23 +235,16 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     return `${mins}m ${remSecs}s`;
   }
 
-  /**
-   * Read/Write-Anzeige: "skipped" wenn beide 0, sonst formatiert mit Tausender-Punkt.
-   */
+  /** Read/Write-Anzeige: "no-op" wenn 0/0, sonst formatiert. */
   stepCounts(step: DbLoadSteps): string {
     const r = parseInt(step.readCount || '0', 10);
     const w = parseInt(step.writeCount || '0', 10);
-    if (r === 0 && w === 0) {
-      // 0/0 bei COMPLETED = Step war ein No-Op (z.B. download mit skipFTP, oder unzip bei leerem FTPData)
-      return 'no-op';
-    }
+    if (r === 0 && w === 0) return 'no-op';
     const fmt = (n: number) => n.toLocaleString('de-CH');
     return `${fmt(r)} read · ${fmt(w)} written`;
   }
 
-  /**
-   * Status-Badge-Farbe oben in Card 1.
-   */
+  /** Status-Badge-Farbe. */
   statusBadgeClass(): string {
     const status = this.dbLoadResponseDto?.status || '';
     if (status === 'COMPLETED') return 'bg-success';

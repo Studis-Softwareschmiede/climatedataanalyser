@@ -32,6 +32,14 @@ export class ApiService {
     return this.http.get<string>(this.LOAD_DATABASE_URL, {params: myQueryparams});
   }
 
+  /**
+   * POST /api/database/clear → truncated alle App- und BATCH_*-Tabellen.
+   * Vorbereitung für sauberen Re-Load (sonst macht Spring-Batch append, nicht replace).
+   */
+  clearDatabase(): Observable<any> {
+    return this.http.post(`${this.BASE_URL}/database/clear`, {});
+  }
+
   appInfo(): Observable<HttpEvent<AppInfoDto>> {
     const req = new HttpRequest('GET', this.APPINFO_URL, {}, {
       reportProgress: true,
