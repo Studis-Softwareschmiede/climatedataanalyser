@@ -65,7 +65,33 @@ public class DataBaseController {
 
     @GetMapping("/")
     DbLoadResponseDto dbLoadInformationRequest() {
-        return this.dbLoadInformationService.getDbLoadInformation();
+        DbLoadResponseDto dto = this.dbLoadInformationService.getDbLoadInformation();
+        // File-Counts in den Pipeline-Volumes — User-Feedback: "download" + "unzipFiles" sind
+        // immer 0 read/0 written (Spring-Batch-Eigenheit für non-chunk Tasklets), so dass die
+        // GUI keine Aussage darüber hat ob tatsächlich Files runtergeladen/entpackt wurden.
+        // Wir zählen direkt im Filesystem und liefern's mit.
+        dto.setFileCounts(collectFileCounts());
+        return dto;
+    }
+
+    private Map<String, Integer> collectFileCounts() {
+        Map<String, Integer> counts = new HashMap<>();
+        counts.put("ftpData", countFilesIn("/download/FTPData"));
+        counts.put("unzipedFiles", countFilesIn("/download/UnzipedDataInputDataFiles"));
+        counts.put("inputFiles", countFilesIn("/download/InputFiles"));
+        return counts;
+    }
+
+    private int countFilesIn(String pathStr) {
+        try {
+            java.io.File dir = new java.io.File(pathStr);
+            if (!dir.exists() || !dir.isDirectory()) return 0;
+            String[] entries = dir.list();
+            return entries != null ? entries.length : 0;
+        } catch (Exception e) {
+            log.warn("countFilesIn({}) failed: {}", pathStr, e.getMessage());
+            return 0;
+        }
     }
 
     /**

@@ -8,14 +8,28 @@ public class DbLoadStep {
     private String readCount;
     private String writeCount;
     private String stepStatus;
+    private String exitMessage;
 
     public DbLoadStep(String stepName, String startTime, String stepEndTime, String readCount, String writeCount, String stepStatus) {
+        this(stepName, startTime, stepEndTime, readCount, writeCount, stepStatus, null);
+    }
+
+    public DbLoadStep(String stepName, String startTime, String stepEndTime, String readCount, String writeCount, String stepStatus, String exitMessage) {
         this.stepName = stepName;
         this.startTime = startTime;
         this.stepEndTime = stepEndTime;
         this.readCount = readCount;
         this.writeCount = writeCount;
         this.stepStatus = stepStatus;
+        this.exitMessage = exitMessage;
+    }
+
+    public String getExitMessage() {
+        return exitMessage;
+    }
+
+    public void setExitMessage(String exitMessage) {
+        this.exitMessage = exitMessage;
     }
 
     public String getStepName() {
