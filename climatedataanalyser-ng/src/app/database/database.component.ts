@@ -136,24 +136,34 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.message = '⟳ Triggering Load…';
 
-    // Sofort optimistische STARTING-Anzeige — falls Backend erst nach >500ms antwortet.
+    // Sofort optimistische STARTING-Anzeige.
     if (this.dbLoadResponseDto) {
       this.dbLoadResponseDto = {
         ...this.dbLoadResponseDto,
         status: 'STARTING',
-        dbLoadSteps: []  // Skeleton zeigt dann alle pending
+        dbLoadSteps: []  // Skeleton zeigt alle pending bis erstes Poll-Resultat
       };
     }
 
+    // FIRE-AND-FORGET: Backend blockiert mit SimpleJobLauncher (sync mode) die ganzen
+    // 5-8 Min bis Job durch ist. Wir warten NICHT auf complete, sondern starten Polling
+    // sofort parallel — sonst keine Live-Updates während der Job läuft.
     this.apiService.loadDataBase(ftp)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        complete: () => this.refreshStatus(),
+        complete: () => {
+          // Job ist hier beendet. Ein letzter Poll holt den Final-Status falls
+          // der Loop schon gestoppt hat (Race-Condition unwahrscheinlich aber safe).
+          this.pollOnce();
+        },
         error: () => {
           this.message = '⚠ Load-Trigger fehlgeschlagen — siehe Browser-Console.';
           this.isLoading = false;
         },
       });
+
+    // Polling SOFORT starten — parallel zum (blockierenden) Trigger-Request.
+    this.refreshStatus();
   }
 
   /**
