@@ -27,6 +27,12 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   isLoading: boolean = false;
   isClearing: boolean = false;
 
+  // Force-Polling-Window: nach loadDataBase()-Trigger pollen wir mindestens
+  // FORCE_POLL_WINDOW_MS lang, auch wenn der Backend-Status (noch) NEVER_RUN
+  // oder FAILED zurückgibt — Race-Condition zwischen Trigger und Job-Init.
+  private forcePollUntil: number = 0;
+  private static readonly FORCE_POLL_WINDOW_MS = 30000;
+
   // Pipeline-Skeleton: fixe 5 Steps, auch wenn das Backend noch keine Job-Run-Daten hat.
   private static readonly PIPELINE_SKELETON = [
     'download',
@@ -57,7 +63,11 @@ export class DatabaseComponent implements OnInit, OnDestroy {
    */
   async refreshStatus(): Promise<void> {
     await this.pollOnce();
-    while (this.isJobRunning() && !this.destroy$.closed) {
+    // Schleife: pollen solange Job läuft ODER force-poll-window nicht abgelaufen
+    // (fängt die Race-Condition direkt nach Trigger ab: Job ist noch nicht in
+    // BATCH_JOB_EXECUTION, status liefert NEVER_RUN/FAILED, ohne forcePollUntil
+    // würde der Loop sofort enden und alle weiteren Updates verpassen).
+    while ((this.isJobRunning() || Date.now() < this.forcePollUntil) && !this.destroy$.closed) {
       await new Promise(r => setTimeout(r, POLL_FAST_MS));
       await this.pollOnce();
     }
@@ -135,6 +145,9 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     const ftp = this.useFTP ? 'true' : 'false';
     this.isLoading = true;
     this.message = '⟳ Triggering Load…';
+    // Force-Polling für 30s — Race-Condition: Backend braucht 100-500ms bis Job
+    // im BATCH_JOB_EXECUTION sichtbar ist. Ohne Window stoppt Polling sofort.
+    this.forcePollUntil = Date.now() + DatabaseComponent.FORCE_POLL_WINDOW_MS;
 
     // Sofort optimistische STARTING-Anzeige.
     if (this.dbLoadResponseDto) {
