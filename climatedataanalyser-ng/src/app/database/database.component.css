@@ -29,6 +29,22 @@
   background-color: #f8f9fa;
 }
 
+.counts {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  min-width: 9rem;
+  text-align: right;
+}
+
+.counts:empty {
+  display: none;
+}
+
+/* "no-op" Counts (= 0/0 bei COMPLETED) dezent — Step ist erfolgreich gelaufen, hatte aber nichts zu tun */
+.counts {
+  color: #6c757d;
+}
+
 /* Soft-Color Badges für Steps. */
 .badge.bg-success-subtle {
   background-color: #d1e7dd !important;

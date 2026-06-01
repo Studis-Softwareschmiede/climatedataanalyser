@@ -6,6 +6,10 @@ import {DbStatus} from '../shared/dbStatusEnum';
 import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
+// Spring-Batch BatchStatus-Werte, die "Job läuft gerade" bedeuten.
+// Polling läuft solange dbLoadResponseDto.status in dieser Menge ist.
+const RUNNING_STATES = new Set(['STARTING', 'STARTED', 'UNKNOWN']);
+
 @Component({
   selector: 'app-database',
   templateUrl: './database.component.html',
@@ -19,7 +23,6 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   isLoading: boolean = false;
 
   // Pipeline-Skeleton: fixe 5 Steps, auch wenn das Backend noch keine Job-Run-Daten hat.
-  // Reihenfolge entspricht der Spring-Batch-Job-Definition (importGermanClimateDataJob).
   private static readonly PIPELINE_SKELETON = [
     'download',
     'unzipFiles',
@@ -43,18 +46,22 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Pollt /api/database/ einmal sofort, dann alle 2s solange Status=loading.
-   * Cleanup via takeUntil(destroy$) — kein Memory-Leak (Issue #13 partial fix).
+   * Pollt /api/database/ einmal sofort. Dann nur weiter pollen solange ein Job AKTUELL
+   * läuft (Spring-Batch-Status STARTING/STARTED). Fix vs. vorher: nicht mehr auf
+   * DbStatusEnum-`loading` schauen (das wurde live nie auf 'loading' gesetzt).
    */
   async refreshStatus(): Promise<void> {
     await this.pollOnce();
-    while (this.currentDbLoadStatus === DbStatus.loading && !this.destroy$.closed) {
+    while (this.isJobRunning() && !this.destroy$.closed) {
       await new Promise(r => setTimeout(r, 2000));
       await this.pollOnce();
     }
-    if (this.currentDbLoadStatus !== DbStatus.loading) {
-      this.isLoading = false;
-    }
+    this.isLoading = false;
+  }
+
+  private isJobRunning(): boolean {
+    const status = this.dbLoadResponseDto?.status || '';
+    return RUNNING_STATES.has(status);
   }
 
   private pollOnce(): Promise<void> {
@@ -71,43 +78,47 @@ export class DatabaseComponent implements OnInit, OnDestroy {
             if (value.type === HttpEventType.Response) {
               this.currentDbLoadStatus = DbStatus[value.body.isDbLoaded];
               this.dbLoadResponseDto = value.body;
-              this.isLoading = this.currentDbLoadStatus === DbStatus.loading;
-              this.message = this.statusMessage(this.currentDbLoadStatus);
+              this.isLoading = this.isJobRunning();
+              this.message = this.statusMessage();
             }
           },
         });
     });
   }
 
-  private statusMessage(status: DbStatus): string {
-    switch (status) {
-      case DbStatus.empty:
-        return 'Datenbank ist leer — klicke Load Database, um den Import zu starten.';
-      case DbStatus.failed:
-        return 'Letzter Load-Versuch ist fehlgeschlagen. Siehe Pipeline-Status für Details.';
-      case DbStatus.loading:
-        return 'Database lädt gerade — Pipeline-Status aktualisiert sich automatisch.';
-      case DbStatus.loaded:
-        return '';
-      case DbStatus.stopped:
-        return 'Letzter Load wurde gestoppt.';
-      default:
-        return '';
+  /**
+   * Status-Message kombiniert DbStatusEnum + aktuellen Job-Status.
+   * Beispiel: 'DB ist geladen (745k Records), letzter Job-Run FAILED an Step 4.'
+   */
+  private statusMessage(): string {
+    const batchStatus = this.dbLoadResponseDto?.status || 'NEVER_RUN';
+    if (RUNNING_STATES.has(batchStatus)) {
+      return '⟳ Job läuft gerade — Pipeline-Status aktualisiert sich alle 2s.';
     }
+    if (batchStatus === 'FAILED') {
+      return '⚠ Letzter Load-Versuch ist fehlgeschlagen. Pipeline-Status zeigt, welcher Step.';
+    }
+    if (batchStatus === 'COMPLETED') {
+      return '✓ Letzter Load-Lauf erfolgreich abgeschlossen.';
+    }
+    if (batchStatus === 'STOPPED' || batchStatus === 'ABANDONED') {
+      return '⏸ Letzter Load wurde abgebrochen.';
+    }
+    if (batchStatus === 'NEVER_RUN') {
+      return 'Database wurde noch nie geladen.';
+    }
+    return '';
   }
 
   loadDataBase(): void {
     const ftp = this.useFTP ? 'true' : 'false';
     this.isLoading = true;
-    this.message = 'Triggering Load…';
+    this.message = '⟳ Triggering Load…';
 
     this.apiService.loadDataBase(ftp)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        complete: () => {
-          this.currentDbLoadStatus = DbStatus.loading;
-          this.refreshStatus();
-        },
+        complete: () => this.refreshStatus(),
         error: () => {
           this.message = '⚠ Load-Trigger fehlgeschlagen — siehe Browser-Console.';
           this.isLoading = false;
@@ -116,8 +127,7 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Mergt das Pipeline-Skeleton mit den Backend-gelieferten Step-Daten.
-   * Fehlende Steps werden als 'pending' angezeigt.
+   * Mergt Pipeline-Skeleton mit Backend-Steps. Fehlende = 'pending'.
    */
   mergedSteps(): DbLoadSteps[] {
     const backendSteps: DbLoadSteps[] = this.dbLoadResponseDto?.dbLoadSteps || [];
@@ -128,9 +138,7 @@ export class DatabaseComponent implements OnInit, OnDestroy {
 
     return DatabaseComponent.PIPELINE_SKELETON.map(name => {
       const found = backendByName.get(name);
-      if (found) {
-        return found;
-      }
+      if (found) return found;
       return {
         stepName: name,
         startTime: '',
@@ -143,34 +151,58 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Icon-Mapping pro Spring-Batch Step-Status. Font-Awesome 5.
+   * Step-Icon: pending / running / done / failed / stopped.
    */
   stepIconClass(status: string): string {
     switch (status) {
-      case 'COMPLETED':
-        return 'fas fa-check-circle text-success';
-      case 'FAILED':
-        return 'fas fa-times-circle text-danger';
+      case 'COMPLETED': return 'fas fa-check-circle text-success';
+      case 'FAILED':    return 'fas fa-times-circle text-danger';
       case 'STARTED':
-      case 'STARTING':
-        return 'fas fa-sync fa-spin text-primary';
+      case 'STARTING': return 'fas fa-sync fa-spin text-primary';
       case 'STOPPED':
-      case 'ABANDONED':
-        return 'fas fa-pause-circle text-warning';
+      case 'ABANDONED': return 'fas fa-pause-circle text-warning';
       case 'pending':
-      default:
-        return 'far fa-circle text-muted';
+      default:          return 'far fa-circle text-muted';
     }
   }
 
   /**
-   * Status-Badge-Farbe (oben in Card 1 neben "Status:").
+   * Step-Dauer in lesbarem Format ("4m 35s", "0.3s", "—" wenn nicht gelaufen).
+   */
+  stepDuration(step: DbLoadSteps): string {
+    if (!step.startTime || !step.stepEndTime) return '';
+    const start = new Date(step.startTime.replace(' ', 'T')).getTime();
+    const end = new Date(step.stepEndTime.replace(' ', 'T')).getTime();
+    if (isNaN(start) || isNaN(end) || end < start) return '';
+    const secs = Math.round((end - start) / 1000);
+    if (secs < 60) return `${secs}s`;
+    const mins = Math.floor(secs / 60);
+    const remSecs = secs % 60;
+    return `${mins}m ${remSecs}s`;
+  }
+
+  /**
+   * Read/Write-Anzeige: "skipped" wenn beide 0, sonst formatiert mit Tausender-Punkt.
+   */
+  stepCounts(step: DbLoadSteps): string {
+    const r = parseInt(step.readCount || '0', 10);
+    const w = parseInt(step.writeCount || '0', 10);
+    if (r === 0 && w === 0) {
+      // 0/0 bei COMPLETED = Step war ein No-Op (z.B. download mit skipFTP, oder unzip bei leerem FTPData)
+      return 'no-op';
+    }
+    const fmt = (n: number) => n.toLocaleString('de-CH');
+    return `${fmt(r)} read · ${fmt(w)} written`;
+  }
+
+  /**
+   * Status-Badge-Farbe oben in Card 1.
    */
   statusBadgeClass(): string {
     const status = this.dbLoadResponseDto?.status || '';
     if (status === 'COMPLETED') return 'bg-success';
     if (status === 'FAILED') return 'bg-danger';
-    if (status === 'STARTING' || status === 'STARTED') return 'bg-primary';
+    if (RUNNING_STATES.has(status)) return 'bg-primary';
     if (status === 'STOPPED' || status === 'ABANDONED') return 'bg-warning text-dark';
     return 'bg-secondary';
   }
