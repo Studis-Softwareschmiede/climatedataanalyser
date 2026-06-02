@@ -32,9 +32,10 @@ adoption_validated_migration_tool: flyway       # Skeleton-Runner entfernt; Sche
 # /upgrade-Lauf (Spec docs/specs/upgrade-2026-06-02-upgrade.md)
 upgrade:
   run_id: 2026-06-02-upgrade
-  status: blocked                                 # AC-L1 tester-gate rot auf JDK17 (#77 blocked-by #93); Staging-Dir bleibt für Resume
+  status: executing                               # AC-L1 (#77) DONE+merged (#92, java17, 58 Tests grün); nächste Stufe AC-F1 (#78)
   timeout_hours: 8                                # weiche Obergrenze für Overnight-Lauf
   tracking_issue: 91
+  done: [77]                                      # AC-L1 java 11→17 (+ UTF-8 test hardening)
   targets:
     java: "21"                                    # interleaved: 11→17→21
     spring-boot: "4"                              # Leiter 2.6→3.x→4.x
