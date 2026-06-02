@@ -13,7 +13,7 @@
     <description>Analyser for German Climate Data</description>
 
     <properties>
-        <java.version>11</java.version>
+        <java.version>17</java.version>
     </properties>
     <dependencies>
         <dependency>
@@ -112,10 +112,22 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <!-- Pin UTF-8 for the test JVM: @Sql seed data contains German umlauts
+                     (e.g. Baden-Württemberg). JDK 17 still derives file.encoding from the
+                     platform locale, so on a non-UTF-8 locale the seed is mis-read and
+                     Bundesland queries match nothing. JDK 18+ would default to UTF-8 (JEP 400);
+                     this makes the build deterministic on every JDK/locale. -->
+                <configuration>
+                    <argLine>-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <!-- See failsafe note above: deterministic UTF-8 for the test JVM. -->
+                <configuration>
+                    <argLine>-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
