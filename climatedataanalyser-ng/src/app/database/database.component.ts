@@ -21,8 +21,8 @@ const POLL_IDLE_MS = 2000;
 })
 export class DatabaseComponent implements OnInit, OnDestroy {
   message: string = '';
-  dbLoadResponseDto: DbLoadResponseDto;
-  currentDbLoadStatus: DbStatus;
+  dbLoadResponseDto: DbLoadResponseDto | null = null;
+  currentDbLoadStatus: DbStatus | null = null;
   useFTP: boolean = false;
   isLoading: boolean = false;
   isClearing: boolean = false;
@@ -90,8 +90,13 @@ export class DatabaseComponent implements OnInit, OnDestroy {
             resolve();
           },
           next: (value) => {
-            if (value.type === HttpEventType.Response) {
-              this.currentDbLoadStatus = DbStatus[value.body.isDbLoaded];
+            if (value.type === HttpEventType.Response && value.body != null) {
+              const raw = value.body.isDbLoaded;
+              const status: DbStatus | undefined =
+                Object.prototype.hasOwnProperty.call(DbStatus, raw)
+                  ? DbStatus[raw as keyof typeof DbStatus]
+                  : undefined;
+              this.currentDbLoadStatus = status ?? null;
               this.dbLoadResponseDto = value.body;
               this.isLoading = this.isJobRunning();
               this.message = this.statusMessage();

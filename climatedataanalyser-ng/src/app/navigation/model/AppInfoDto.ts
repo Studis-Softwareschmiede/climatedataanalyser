@@ -1,5 +1,5 @@
 export class AppInfoDto {
 
-  version: string;
-  buildTime: string;
+  version: string = '';
+  buildTime: string = '';
 }

@@ -11,14 +11,14 @@ import {takeUntil} from 'rxjs/operators';
 })
 export class ClimatesComponent implements OnInit, OnDestroy {
 
-  bundeslaender: Array<string>;
-  selectedBundesland: string;
-  angForm: FormGroup;
-  climateResponseDto: ClimateResponseDto;
-  private startYear;
-  private distanceYear;
+  bundeslaender: Array<string> | null = null;
+  selectedBundesland: string = '';
+  angForm!: FormGroup;
+  climateResponseDto: ClimateResponseDto | null = null;
+  private startYear: string = '';
+  private distanceYear: string = '';
   private fb: FormBuilder;
-  private zero: string;
+  private zero: string = '0';
 
   private destroy$ = new Subject<void>();
 
@@ -29,7 +29,6 @@ export class ClimatesComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.initClimates();
-    this.zero = '0';
   }
 
   ngOnDestroy() {
@@ -83,7 +82,7 @@ export class ClimatesComponent implements OnInit, OnDestroy {
 
   }
 
-  onBundeslaenderDropDownListSelected(selectedBundesland: any) {
+  onBundeslaenderDropDownListSelected(selectedBundesland: string) {
 
     this.startYear = this.angForm.value.valueOf().startYear;
     this.distanceYear = this.angForm.value.valueOf().distanceYear;
