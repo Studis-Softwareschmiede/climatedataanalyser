@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 
@@ -66,13 +65,18 @@ class DirectoryUtilityImplTest {
 
 
     @Test
-    void createDirNoFolderFoundError() {
-        File dir = null;
-        FileNotFoundException fileNotFoundException = null;
+    void createDirCreatesMissingParentOnDemand() {
+        // getPath() uses Files.createDirectories, so missing parent directories are
+        // created on-demand. The old behaviour (return null when folder not found) no
+        // longer exists; this test verifies the current, intentional behaviour.
+        File dir = DirectoryUtilityImpl.getEmptyDirectory(FOLDER_NOT_FOUND, FOLDER_NOT_FOUND);
 
-        dir = DirectoryUtilityImpl.getEmptyDirectory(FOLDER_NOT_FOUND, FOLDER_NOT_FOUND);
+        Assertions.assertNotNull(dir, "getEmptyDirectory must not return null for a missing parent");
+        Assertions.assertTrue(dir.isDirectory(), "getEmptyDirectory must create the target directory");
 
-        Assertions.assertSame(null, dir);
+        // Cleanup: remove NOTFOUND/NOTFOUND and the parent NOTFOUND to avoid test pollution.
+        dir.delete();                          // removes NOTFOUND/NOTFOUND
+        new File(FOLDER_NOT_FOUND).delete();   // removes NOTFOUND (parent)
     }
 
 
