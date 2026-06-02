@@ -32,7 +32,7 @@ adoption_validated_migration_tool: flyway       # Skeleton-Runner entfernt; Sche
 # /upgrade-Lauf (Spec docs/specs/upgrade-2026-06-02-upgrade.md)
 upgrade:
   run_id: 2026-06-02-upgrade
-  status: executing                               # planning → executing (vor 1. /flow-Item) → done|blocked
+  status: blocked                                 # AC-L1 tester-gate rot auf JDK17 (#77 blocked-by #93); Staging-Dir bleibt für Resume
   timeout_hours: 8                                # weiche Obergrenze für Overnight-Lauf
   tracking_issue: 91
   targets:
