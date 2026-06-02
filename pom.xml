@@ -13,7 +13,8 @@
     </parent>
     <properties>
         <project.scm.id>github</project.scm.id>
-        <git.repository>Alexstuder/climatedataanalyser</git.repository>
+        <git.repository>Studis-Softwareschmiede/climatedataanalyser</git.repository>
+        <sonar.projectKey>Studis-Softwareschmiede_climatedataanalyser</sonar.projectKey>
         <sonar.organization>alexstuder</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
     </properties>
