@@ -35,7 +35,7 @@ upgrade:
   status: executing                               # AC-L1 (#77) DONE+merged (#92, java17, 58 Tests grün); nächste Stufe AC-F1 (#78)
   timeout_hours: 8                                # weiche Obergrenze für Overnight-Lauf
   tracking_issue: 91
-  done: [77]                                      # AC-L1 java 11→17 (+ UTF-8 test hardening)
+  done: [77, 78]                                  # AC-L1 java 11→17; AC-F1 spring-boot 2.6→3.3.13
   targets:
     java: "21"                                    # interleaved: 11→17→21
     spring-boot: "4"                              # Leiter 2.6→3.x→4.x
