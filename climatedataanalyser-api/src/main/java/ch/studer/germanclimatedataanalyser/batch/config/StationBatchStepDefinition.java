@@ -25,11 +25,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.FileNotFoundException;
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @Configuration
 public class StationBatchStepDefinition {
+
+    private static final Logger log = LoggerFactory.getLogger(StationBatchStepDefinition.class);
 
     @Autowired
     private StepBuilderFactory stepBuilderFactoryImport;
@@ -118,8 +123,8 @@ public class StationBatchStepDefinition {
             return reader;
 
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            throw new RuntimeException();
+            log.error("Station input file not found (pattern: {}): {}", stationFileName, e.getMessage(), e);
+            throw new RuntimeException(e);
         }
     }
 
