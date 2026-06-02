@@ -6,27 +6,22 @@ import ch.studer.germanclimatedataanalyser.batch.writer.WeatherWriter;
 import ch.studer.germanclimatedataanalyser.model.database.Month;
 import ch.studer.germanclimatedataanalyser.service.db.StationWeatherService;
 import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @Configuration
 public class WeatherBatchStepDefinition {
 
-    private final JobBuilderFactory jobBuilderFactoryImport;
-    private final StepBuilderFactory stepBuilderFactoryImport;
     private final MonthReader monthReader;
     private final StationWeatherService stationWeatherService;
 
-    public WeatherBatchStepDefinition(JobBuilderFactory jobBuilderFactoryImport,
-                                      StepBuilderFactory stepBuilderFactoryImport,
-                                      MonthReader monthReader,
+    public WeatherBatchStepDefinition(MonthReader monthReader,
                                       StationWeatherService stationWeatherService) {
-        this.jobBuilderFactoryImport = jobBuilderFactoryImport;
-        this.stepBuilderFactoryImport = stepBuilderFactoryImport;
         this.monthReader = monthReader;
         this.stationWeatherService = stationWeatherService;
     }
@@ -44,9 +39,9 @@ public class WeatherBatchStepDefinition {
     }
 
     @Bean("importWeatherRecords")
-    public Step importWeatherRecords() {
-        return stepBuilderFactoryImport.get("import-weather-records")
-                .<Month, Month>chunk(5000)
+    public Step importWeatherRecords(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("import-weather-records", jobRepository)
+                .<Month, Month>chunk(5000, transactionManager)
                 //.reader(temperatureFromDbReader())
                 .reader(monthReader.getMonthFromDbReader())
                 //.listener(new StepProcessorListener(statistics()))

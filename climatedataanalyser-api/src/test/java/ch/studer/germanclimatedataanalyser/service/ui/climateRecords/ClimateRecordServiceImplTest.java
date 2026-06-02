@@ -7,8 +7,8 @@ import ch.studer.germanclimatedataanalyser.model.dto.climaterecords.ClimateRecor
 import ch.studer.germanclimatedataanalyser.model.dto.climaterecords.ClimateRecordsDto;
 import ch.studer.germanclimatedataanalyser.model.dto.helper.Bundesland;
 import ch.studer.germanclimatedataanalyser.model.dto.helper.GpsPoint;
-import org.junit.Ignore;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -60,7 +60,7 @@ class ClimateRecordServiceImplTest {
     ClimateRecordServiceImpl climateRecordService;
 
     @Test
-    @Ignore
+    @Disabled
     void proofInput() {
 
         // get test List<ClimateRecords> as readed from Table

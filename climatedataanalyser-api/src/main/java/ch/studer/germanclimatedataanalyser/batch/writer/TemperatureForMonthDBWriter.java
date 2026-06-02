@@ -4,9 +4,8 @@ import ch.studer.germanclimatedataanalyser.model.database.Month;
 import ch.studer.germanclimatedataanalyser.service.db.MonthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
-
-import java.util.List;
 
 
 public class TemperatureForMonthDBWriter implements ItemWriter<Month> {
@@ -20,9 +19,9 @@ public class TemperatureForMonthDBWriter implements ItemWriter<Month> {
     }
 
     @Override
-    public void write(List<? extends Month> months) {
+    public void write(Chunk<? extends Month> months) throws Exception {
 
-        monthService.saveAllMonth(months);
+        monthService.saveAllMonth(months.getItems());
 
 
     }

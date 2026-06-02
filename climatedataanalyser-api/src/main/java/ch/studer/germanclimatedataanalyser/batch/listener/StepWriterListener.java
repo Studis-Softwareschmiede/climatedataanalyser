@@ -2,8 +2,7 @@ package ch.studer.germanclimatedataanalyser.batch.listener;
 
 import ch.studer.germanclimatedataanalyser.model.database.Month;
 import org.springframework.batch.core.ItemWriteListener;
-
-import java.util.List;
+import org.springframework.batch.item.Chunk;
 
 
 public class StepWriterListener implements ItemWriteListener<Month> {
@@ -14,18 +13,18 @@ public class StepWriterListener implements ItemWriteListener<Month> {
     }
 
     @Override
-    public void beforeWrite(List<? extends Month> items) {
+    public void beforeWrite(Chunk<? extends Month> items) {
 
     }
 
     @Override
-    public void afterWrite(List<? extends Month> items) {
+    public void afterWrite(Chunk<? extends Month> items) {
 
 
     }
 
     @Override
-    public void onWriteError(Exception exception, List<? extends Month> items) {
+    public void onWriteError(Exception exception, Chunk<? extends Month> items) {
 
     }
 }

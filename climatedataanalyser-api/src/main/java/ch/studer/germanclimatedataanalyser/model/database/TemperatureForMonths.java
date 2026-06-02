@@ -1,7 +1,7 @@
 package ch.studer.germanclimatedataanalyser.model.database;
 
-import javax.persistence.Column;
-import javax.persistence.MappedSuperclass;
+import jakarta.persistence.Column;
+import jakarta.persistence.MappedSuperclass;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;

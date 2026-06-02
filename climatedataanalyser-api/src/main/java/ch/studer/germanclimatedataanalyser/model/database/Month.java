@@ -1,6 +1,6 @@
 package ch.studer.germanclimatedataanalyser.model.database;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.sql.Date;

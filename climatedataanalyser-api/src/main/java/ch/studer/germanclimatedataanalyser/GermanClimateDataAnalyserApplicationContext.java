@@ -15,6 +15,7 @@ import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbStatusInfor
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbStatusInformationServiceImpl;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.info.BuildProperties;
+import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,11 +32,13 @@ public class GermanClimateDataAnalyserApplicationContext {
     }
 
     @Bean
+    @DependsOnDatabaseInitialization
     MonthReader monthReader(DataSource dataSource) {
         return new MonthReader(dataSource);
     }
 
     @Bean
+    @DependsOnDatabaseInitialization
     WeatherReader weatherReader(DataSource dataSource) {
         return new WeatherReader(dataSource);
     }

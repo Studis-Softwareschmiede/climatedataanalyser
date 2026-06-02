@@ -4,9 +4,8 @@ import ch.studer.germanclimatedataanalyser.model.database.Station;
 import ch.studer.germanclimatedataanalyser.service.db.StationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
-
-import java.util.List;
 
 
 public class StationDBWriter implements ItemWriter<Station> {
@@ -20,9 +19,9 @@ public class StationDBWriter implements ItemWriter<Station> {
     }
 
     @Override
-    public void write(List<? extends Station> stations) {
+    public void write(Chunk<? extends Station> stations) throws Exception {
 
-        stationService.saveAllStation(stations);
+        stationService.saveAllStation(stations.getItems());
 
 
     }

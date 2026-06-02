@@ -12,8 +12,9 @@ import ch.studer.germanclimatedataanalyser.service.db.MonthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.MultiResourceItemReader;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
@@ -25,13 +26,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.transaction.PlatformTransactionManager;
 
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @Configuration
 public class TemperatureForMonthBatchConfiguration {
-
-    private final StepBuilderFactory stepBuilderFactoryImport;
     private final SkippedRecordTracker skippedRecordTracker;
     private final MonthService monthService;
 
@@ -41,10 +41,8 @@ public class TemperatureForMonthBatchConfiguration {
     @Value("${climate.path.inputFolderName}")
     private String inputDirectoryName;
 
-    public TemperatureForMonthBatchConfiguration(StepBuilderFactory stepBuilderFactoryImport,
-                                                 SkippedRecordTracker skippedRecordTracker,
+    public TemperatureForMonthBatchConfiguration(SkippedRecordTracker skippedRecordTracker,
                                                  MonthService monthService) {
-        this.stepBuilderFactoryImport = stepBuilderFactoryImport;
         this.skippedRecordTracker = skippedRecordTracker;
         this.monthService = monthService;
     }
@@ -127,9 +125,9 @@ public class TemperatureForMonthBatchConfiguration {
 
 
     @Bean
-    public Step importTemperatureRecords() {
-        return stepBuilderFactoryImport.get("import-temperature-records")
-                .<MonthFile, Month>chunk(10000)
+    public Step importTemperatureRecords(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        return new StepBuilder("import-temperature-records", jobRepository)
+                .<MonthFile, Month>chunk(10000, transactionManager)
                 .reader(monthFilesReader())
                 .listener(new StepProcessorListener())
                 .processor(temperaturProcessor())
