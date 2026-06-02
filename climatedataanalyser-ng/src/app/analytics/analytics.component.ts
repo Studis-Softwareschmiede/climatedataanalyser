@@ -121,14 +121,20 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
    * - Bei jedem Drag-Ende werden die Form-Werte synchronisiert
    * Ersatz für die abgeschaltete Edit-Toolbar (kein "Save"-Klick nötig).
    */
-  private enablePersistentEdit(layer: L.Rectangle) {
-    const editing = (layer as any).editing;
-    if (editing && typeof editing.enable === 'function') {
-      editing.enable();
+  private enablePersistentEdit(layer: any) {
+    try {
+      const editing = layer && layer.editing;
+      if (editing && typeof editing.enable === 'function') {
+        editing.enable();
+      }
+      // Leaflet.draw firet auf dem Layer 'edit' sobald ein Drag abgeschlossen ist.
+      // 'editdrag' / 'editmove' während des Drags — wir nehmen das zum Live-Update.
+      if (layer && typeof layer.on === 'function') {
+        layer.on('edit editdrag editmove', () => this.updateCoordsFromLayer(layer));
+      }
+    } catch (e) {
+      console.warn('analytics: enablePersistentEdit failed (non-fatal)', e);
     }
-    // Leaflet.draw firet auf dem Layer 'edit' sobald ein Drag abgeschlossen ist.
-    // 'editdrag' / 'editmove' während des Drags — wir nehmen das zum Live-Update.
-    layer.on('edit editdrag editmove', () => this.updateCoordsFromLayer(layer));
   }
 
   /**
@@ -151,25 +157,32 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
    * Wird vom Submit-Pfad benutzt, um die aktuellen Bounds direkt vom Layer
    * zu ziehen — robuster als sich auf die Form zu verlassen (das edit-Event
    * von Leaflet.draw firet je nach Version unterschiedlich zuverlässig).
+   * Duck-typing wieder, aus dem gleichen Grund wie in updateCoordsFromLayer.
    */
-  private getCurrentRectangle(): L.Rectangle | null {
-    let found: L.Rectangle | null = null;
+  private getCurrentRectangle(): any {
+    let found: any = null;
     this.drawnItems.eachLayer((l: any) => {
-      if (!found && l instanceof L.Rectangle) {
+      if (!found && l && typeof l.getBounds === 'function') {
         found = l;
       }
     });
     return found;
   }
 
-  private updateCoordsFromLayer(layer: L.Rectangle) {
-    // Defensive: only act on actual Rectangle layers (instanceof guard against
-    // Leaflet.draw's edit-markers, which would otherwise produce a degenerate
-    // nw == se "box" when accidentally captured).
-    if (!(layer instanceof L.Rectangle)) {
+  private updateCoordsFromLayer(layer: any) {
+    // Duck-typing statt `instanceof L.Rectangle`: Webpack kann am Ende zwei
+    // verschiedene `L`-Identitäten produzieren (eine via `import * as L`,
+    // eine die Leaflet.draw selbst zieht), wodurch der instanceof-Check
+    // false zurückgibt, OBWOHL der Layer faktisch ein Rectangle ist. Wir
+    // prüfen die Methoden, nicht die Klasse — funktioniert für Rectangle &
+    // Polygon, fängt Marker raus (haben kein getBounds).
+    if (!layer || typeof layer.getBounds !== 'function') {
       return;
     }
     const bounds = layer.getBounds();
+    if (!bounds || typeof bounds.getNorthWest !== 'function') {
+      return;
+    }
     const nw = bounds.getNorthWest();
     const se = bounds.getSouthEast();
 
