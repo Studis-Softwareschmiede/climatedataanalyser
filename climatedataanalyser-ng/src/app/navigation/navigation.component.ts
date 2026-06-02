@@ -12,7 +12,7 @@ import {takeUntil} from 'rxjs/operators';
 })
 export class NavigationComponent implements OnInit, OnDestroy {
 
-  appinfo: AppInfoDto;
+  appinfo: AppInfoDto | null = null;
 
   private destroy$ = new Subject<void>();
 

@@ -2,7 +2,7 @@ import {ClimateAnalyserOneTemp} from '../../analytics/model/climate-analyser-one
 
 export class ClimateRecords {
 
-  header: string;
-  climateRecord: ClimateAnalyserOneTemp;
+  header: string = '';
+  climateRecord!: ClimateAnalyserOneTemp;
 
 }

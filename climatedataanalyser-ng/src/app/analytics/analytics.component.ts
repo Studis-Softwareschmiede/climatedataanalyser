@@ -20,25 +20,25 @@ import 'leaflet-draw';
 })
 export class AnalyticsComponent implements OnInit, OnDestroy {
 
-  bundeslaender: Array<string>;
-  selectedBundesland: string;
-  climateAnalyserResponseDto: ClimateAnalyserResponseDto;
-  angForm: FormGroup;
+  bundeslaender: Array<string> | null = null;
+  selectedBundesland: string = '';
+  climateAnalyserResponseDto: ClimateAnalyserResponseDto | null = null;
+  angForm!: FormGroup;
 
   // Map state — public so template can bind [leafletLayer]="drawnItems"
-  leafletOptions: L.MapOptions;
-  drawnItems: L.FeatureGroup;
+  leafletOptions!: L.MapOptions;
+  drawnItems!: L.FeatureGroup;
 
   // Read-only coordinate display (AC-F9)
-  nwDisplay: string = null;
-  seDisplay: string = null;
+  nwDisplay: string | null = null;
+  seDisplay: string | null = null;
 
   // Drag-selection state (eigener Tool-Modus, statt Leaflet.draw)
   isDrawing = false;
   private startLatLng: L.LatLng | null = null;
   private previewLayer: L.Rectangle | null = null;
 
-  private map: L.Map;
+  private map: L.Map | null = null;
   private fb: FormBuilder;
 
   // Lifecycle: unsubscribe all observables on destroy + tear down Leaflet map.
