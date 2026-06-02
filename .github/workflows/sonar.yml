@@ -47,24 +47,24 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      - name: Set up Java 17
+      - name: Set up Java 21
         if: steps.check.outputs.run == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: maven
 
-      - name: Build + Test (Java 17)
+      - name: Build + Test (Java 21)
         if: steps.check.outputs.run == 'true'
         run: ./mvnw -B -ntp -pl climatedataanalyser-api -am verify
 
-      - name: Set up Java 17 (Scanner)
+      - name: Set up Java 21 (Scanner)
         if: steps.check.outputs.run == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: SonarCloud Scanner (Java 17)
         if: steps.check.outputs.run == 'true'
