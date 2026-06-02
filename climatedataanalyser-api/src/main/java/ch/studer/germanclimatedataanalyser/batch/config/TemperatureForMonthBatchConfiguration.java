@@ -25,7 +25,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
-import org.springframework.transaction.annotation.Transactional;
 
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
@@ -121,7 +120,6 @@ public class TemperatureForMonthBatchConfiguration {
     }
 
 
-    @Transactional
     @Bean
     public Step importTemperatureRecords() {
         return stepBuilderFactoryImport.get("import-temperature-records")

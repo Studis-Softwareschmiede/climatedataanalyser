@@ -11,7 +11,6 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.transaction.annotation.Transactional;
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @Configuration
@@ -39,7 +38,6 @@ public class ClimateBatchStepDefinition {
         return new ClimateWriter();
     }
 
-    @Transactional
     @Bean("importClimateRecords")
     public Step importClimateRecords() {
         // Step-Name kebab-case wie die anderen 4 (import-{temperature,station,weather,climate}-records).

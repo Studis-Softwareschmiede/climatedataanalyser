@@ -22,26 +22,26 @@ public class MonthServiceImpl implements MonthService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public int getCountOnDb(int stationsID) {
         return monthDAO.getCountOnDb(stationsID);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<Month> getMonthsById(int stationsID) {
         return monthDAO.getMonthsById(stationsID);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<Month> getMonthsByIdOrderDesc(int stationsId) {
 
         return monthDAO.getMonthsByIdOrderDesc(stationsId);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<Integer> getAllStationId() {
 
         return monthDAO.getAllStationID();
