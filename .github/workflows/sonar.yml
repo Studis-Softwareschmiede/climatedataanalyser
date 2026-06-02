@@ -1,13 +1,20 @@
 name: SonarCloud Analysis
 
+# Trigger: monatlich + manuell (kein push/PR — spart Actions-Minuten/Sonar-Limits).
+# Manuell: Actions-Tab -> "Run workflow", oder `gh workflow run "SonarCloud Analysis"`.
+# Scheduled-Workflows laufen auf dem Default-Branch; GitHub pausiert sie nach
+# 60 Tagen Repo-Inaktivität (dann einmal manuell re-aktivieren).
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+  schedule:
+    - cron: '0 4 1 * *'   # 1. des Monats, 04:00 UTC — periodische Baseline
+  workflow_dispatch: {}     # Handstart
 
 permissions:
   contents: read
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   sonar:
