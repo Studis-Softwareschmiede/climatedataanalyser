@@ -9,7 +9,7 @@ frameworks:
   - "angular@13"                                # auto-detected from climatedataanalyser-ng/package.json @angular/core ~13.3.2
 db_dialect: mysql                               # auto-detected from climatedataanalyser-api/pom.xml mysql-connector-java (legacy coords, B7-Fix), confirmed 2026-05-31
 companions: []
-db_migration_tool: skeleton                     # kein flyway/liquibase in pom.xml gefunden; Default-Mapping (§5) wäre flyway@10 — explizit auf skeleton gesetzt (Backlog-Item: Migration zu flyway@10 prüfen, Important)
+db_migration_tool: flyway                       # flyway-core (BOM-managed 8.0.5 via spring-boot-starter-parent 2.6.6) — migriert von skeleton (Item #17)
 
 test: "mvn -B -ntp test"
 lint: "mvn -B -ntp -DskipTests verify"
@@ -22,7 +22,7 @@ image: ghcr.io/studis-softwareschmiede/climatedataanalyser
 registry: ghcr
 
 # Validate-Cache (Phase 5 — End-to-End-Smoke gegen db_scripts/000_init_meta.sql)
-adoption_validated_at: 2026-05-31T20:45:35Z
+adoption_validated_at: null                     # invalidiert: db_migration_tool skeleton→flyway (#17) — re-validate beim nächsten /preview up
 adoption_validated_dialect: mysql
 adoption_validated_companions: []
-adoption_validated_migration_tool: skeleton
+adoption_validated_migration_tool: skeleton     # Audit-Trail: was zuletzt validiert wurde (vor #17)
