@@ -69,7 +69,11 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
 
     this.drawnItems = L.featureGroup();
 
-    // AC-F4 + AC-F6: rectangle only, danger-red style
+    // AC-F4 + AC-F6: rectangle only, danger-red style.
+    // Edit-Toolbar (Save/Cancel) bewusst DEAKTIVIERT — wir aktivieren das
+    // Editing direkt am Layer (persistent edit), so dass Ecken & Mitte
+    // sofort nach dem Zeichnen ziehbar sind, ohne den Umweg über Save.
+    // Gelöscht wird über den eigenen "Rechteck löschen"-Button im Template.
     this.leafletDrawOptions = {
       position: 'topleft',
       draw: {
@@ -87,50 +91,75 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
         marker: false,
         circlemarker: false
       },
-      edit: {
-        featureGroup: this.drawnItems
-      }
+      edit: false
     };
   }
 
   onMapReady(map: L.Map) {
     this.map = map;
 
-    // AC-F5 + AC-F7 + AC-F8: draw:created → replace old rectangle
+    // AC-F5 + AC-F7 + AC-F8: draw:created → replace old rectangle + persistent edit
     this.map.on('draw:created', (event: any) => {
       this.drawnItems.clearLayers();
-      const layer = event.layer;
+      const layer = event.layer as L.Rectangle;
       this.drawnItems.addLayer(layer);
       // Beim Zeichnen via Toolbar: bewusst auch das Dropdown leeren — der User
       // hat ja eine neue Region per Hand definiert, das alte Bundesland-Tag
       // gehört nicht mehr dazu (Convenience-Init ist überholt).
       this.selectedBundesland = '';
       this.updateCoordsFromLayer(layer);
+      // Sofort persistent editierbar machen — Eck-Marker & Mitten-Drag verfügbar
+      // ohne den Umweg über eine separate Edit-Toolbar + Save.
+      this.enablePersistentEdit(layer);
     });
+  }
 
-    // AC-F14: edit support — nur das (eine) Rectangle aktualisieren,
-    // niemals via eachLayer auch Edit-Marker (das ist die degenerate-Box-Falle).
-    this.map.on('draw:edited', (event: any) => {
-      let edited: L.Rectangle | null = null;
-      event.layers.eachLayer((layer: any) => {
-        if (layer instanceof L.Rectangle && !edited) {
-          edited = layer;
-        }
-      });
-      if (edited) {
-        this.updateCoordsFromLayer(edited);
-      }
-    });
+  /**
+   * Aktiviert Leaflet.draw's per-layer editing direkt am Rectangle:
+   * - Eckpunkte & Mitten-Marker werden sofort angezeigt
+   * - User kann Ecken / ganze Box ziehen
+   * - Bei jedem Drag-Ende werden die Form-Werte synchronisiert
+   * Ersatz für die abgeschaltete Edit-Toolbar (kein "Save"-Klick nötig).
+   */
+  private enablePersistentEdit(layer: L.Rectangle) {
+    const editing = (layer as any).editing;
+    if (editing && typeof editing.enable === 'function') {
+      editing.enable();
+    }
+    // Leaflet.draw firet auf dem Layer 'edit' sobald ein Drag abgeschlossen ist.
+    // 'editdrag' / 'editmove' während des Drags — wir nehmen das zum Live-Update.
+    layer.on('edit editdrag editmove', () => this.updateCoordsFromLayer(layer));
+  }
 
-    this.map.on('draw:deleted', () => {
-      this.clearSelection();
-    });
+  /**
+   * Vom Lösch-Button im Template aufgerufen. Cleart Layer + Form + Display.
+   */
+  clearRectangle() {
+    this.drawnItems.clearLayers();
+    this.clearSelection();
+    this.selectedBundesland = '';
   }
 
   private clearSelection() {
     this.nwDisplay = null;
     this.seDisplay = null;
     this.angForm.patchValue({gps1lat: '', gps1long: '', gps2lat: '', gps2long: ''});
+  }
+
+  /**
+   * Liest den (einzigen) Rectangle-Layer aus drawnItems, oder null.
+   * Wird vom Submit-Pfad benutzt, um die aktuellen Bounds direkt vom Layer
+   * zu ziehen — robuster als sich auf die Form zu verlassen (das edit-Event
+   * von Leaflet.draw firet je nach Version unterschiedlich zuverlässig).
+   */
+  private getCurrentRectangle(): L.Rectangle | null {
+    let found: L.Rectangle | null = null;
+    this.drawnItems.eachLayer((l: any) => {
+      if (!found && l instanceof L.Rectangle) {
+        found = l;
+      }
+    });
+    return found;
   }
 
   private updateCoordsFromLayer(layer: L.Rectangle) {
@@ -175,22 +204,36 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   }
 
   // AC-F13: submit. Prioritisierung:
-  // 1) Wenn ein Rechteck auf der Karte existiert → GPS senden (Bundesland leer).
-  //    Das Rechteck ist die Wahrheit, auch wenn vorher per Bundesland-Dropdown vorgezeichnet.
-  // 2) Wenn KEIN Rechteck, aber Bundesland gewählt → nur Bundesland senden (Server-side fallback).
-  // Damit kollidieren Dropdown + Map nicht mehr (vorher: bundesland='' UND GPS=0,0 → ErrorMsg).
+  // 1) Wenn ein Rechteck auf der Karte existiert → live bounds vom Layer lesen
+  //    (nicht aus dem Form, falls das edit-Event nicht zuverlässig firet) → GPS senden, Bundesland leer.
+  // 2) Wenn KEIN Rechteck, aber Bundesland gewählt → nur Bundesland senden.
   onClickSubmit() {
     const v = this.angForm.value;
-    const hasBoxNumeric =
-      v.gps1lat !== '' && v.gps1long !== '' && v.gps2lat !== '' && v.gps2long !== '';
 
-    const bundeslandParam = hasBoxNumeric ? '' : (this.selectedBundesland || '');
-    const gps1 = hasBoxNumeric
-      ? new GpsPoint(parseFloat(v.gps1long), parseFloat(v.gps1lat))
-      : new GpsPoint(0, 0);
-    const gps2 = hasBoxNumeric
-      ? new GpsPoint(parseFloat(v.gps2long), parseFloat(v.gps2lat))
-      : new GpsPoint(0, 0);
+    // Live-Bounds vom aktuellen Rectangle-Layer ziehen — das ist die Wahrheit,
+    // unabhängig von Form-Werten oder edit-Event-Quirks.
+    const rect = this.getCurrentRectangle();
+    let gps1: GpsPoint;
+    let gps2: GpsPoint;
+    let bundeslandParam: string;
+
+    if (rect) {
+      const bounds = rect.getBounds();
+      const nw = bounds.getNorthWest();
+      const se = bounds.getSouthEast();
+      gps1 = new GpsPoint(nw.lng, nw.lat);
+      gps2 = new GpsPoint(se.lng, se.lat);
+      bundeslandParam = '';
+      // Form-Werte sync zum aktuellen Stand (vor Submit)
+      this.angForm.patchValue({gps1lat: nw.lat, gps1long: nw.lng, gps2lat: se.lat, gps2long: se.lng});
+    } else if (this.selectedBundesland) {
+      gps1 = new GpsPoint(0, 0);
+      gps2 = new GpsPoint(0, 0);
+      bundeslandParam = this.selectedBundesland;
+    } else {
+      alert('Bitte ein Rechteck zeichnen oder ein Bundesland wählen.');
+      return;
+    }
 
     this.apiService.getAnalyticsByRequest(
       bundeslandParam, gps1, gps2, v.yearO, v.yearC
@@ -258,6 +301,9 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
           });
           this.drawnItems.addLayer(rect);
           this.updateCoordsFromLayer(rect);
+          // Auch beim Bundesland-Vorzeichnen: persistent edit aktivieren,
+          // damit der User die vorgezeichnete Box direkt feintunen kann.
+          this.enablePersistentEdit(rect);
           if (this.map) {
             this.map.fitBounds(rect.getBounds());
           }

@@ -11,17 +11,27 @@
   </div>
 </div>
 
-<!-- AC-F9: Read-only coordinate display under the map -->
+<!-- AC-F9: Read-only coordinate display under the map + clear button -->
 <div class="analytics-coords">
-  <ng-container *ngIf="nwDisplay; else noSelection">
-    <span class="coord-label">{{ nwDisplay }}</span>
-    &nbsp;&nbsp;
-    <span class="coord-label">{{ seDisplay }}</span>
-  </ng-container>
-  <ng-template #noSelection>
-    <span class="coord-placeholder">— Rechteck auf der Karte zeichnen —</span>
-  </ng-template>
-  <p class="coord-tip">Tipp: ein Rechteck mit mind. 0.5° Kantenlänge erhöht die Trefferzahl.</p>
+  <div class="d-flex align-items-center flex-wrap" style="gap: .75rem;">
+    <ng-container *ngIf="nwDisplay; else noSelection">
+      <span class="coord-label">{{ nwDisplay }}</span>
+      <span class="coord-label">{{ seDisplay }}</span>
+      <button type="button"
+              class="btn btn-sm btn-outline-danger"
+              (click)="clearRectangle()"
+              title="Rechteck entfernen und neu zeichnen">
+        🗑️ Rechteck löschen
+      </button>
+    </ng-container>
+    <ng-template #noSelection>
+      <span class="coord-placeholder">— Klick auf das Rechteck-Icon ◻ oben links, dann mit gedrückter Maustaste auf der Karte ziehen —</span>
+    </ng-template>
+  </div>
+  <p class="coord-tip">
+    Tipp: ein Rechteck mit mind. 0.5° Kantenlänge erhöht die Trefferzahl.
+    Nach dem Zeichnen kannst du Ecken & die ganze Box direkt mit der Maus ziehen — kein Save-Klick nötig.
+  </p>
 </div>
 
 <!-- Bundesland Dropdown (AC-F11) -->
