@@ -1,0 +1,23 @@
+# Compiled output — rebuilt inside the Docker build-stage
+**/target/
+
+# Angular local node installation managed by frontend-maven-plugin
+climatedataanalyser-ng/src/main/web/node/
+climatedataanalyser-ng/src/main/web/node_modules/
+
+# General node_modules anywhere in the tree
+**/node_modules/
+
+# Git metadata and IDE files
+.git/
+.gitignore
+.idea/
+*.iml
+.vscode/
+
+# Local docs and scripts not needed in image
+docs/
+db_scripts/
+
+# Log files
+*.log
