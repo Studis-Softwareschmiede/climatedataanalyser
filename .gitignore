@@ -41,3 +41,6 @@ build/
 # lokale Secret-Env (nur .example wird committet)
 .env.db
 .env
+
+# /upgrade hermetic staging (disposable)
+.claude/upgrade/

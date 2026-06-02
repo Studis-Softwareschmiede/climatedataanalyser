@@ -28,3 +28,20 @@ adoption_validated_at: 2026-06-02               # re-validate PASS: Flyway V1→
 adoption_validated_dialect: mysql
 adoption_validated_companions: []
 adoption_validated_migration_tool: flyway       # Skeleton-Runner entfernt; Schema-Hoheit liegt bei Flyway (climatedataanalyser-api/.../db/migration)
+
+# /upgrade-Lauf (Spec docs/specs/upgrade-2026-06-02-upgrade.md)
+upgrade:
+  run_id: 2026-06-02-upgrade
+  status: planning                                # planning → executing (vor 1. /flow-Item) → done|blocked
+  timeout_hours: 8                                # weiche Obergrenze für Overnight-Lauf
+  tracking_issue: 91
+  targets:
+    java: "21"                                    # interleaved: 11→17→21
+    spring-boot: "4"                              # Leiter 2.6→3.x→4.x
+    angular: "21"                                 # Leiter 13→…→21
+    typescript: "5.9"
+    node: "22"
+    flyway: "10"                                  # BOM-driven via SB4
+  board_items:
+    backend: [77, 78, 79, 80, 81]                 # L1, F1, L2, F2, M1
+    angular: [82, 83, 84, 85, 86, 87, 88, 89, 90] # NG1..NG9
