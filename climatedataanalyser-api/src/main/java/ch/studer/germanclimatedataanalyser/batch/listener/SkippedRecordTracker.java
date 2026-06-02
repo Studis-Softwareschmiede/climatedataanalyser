@@ -34,9 +34,7 @@ public class SkippedRecordTracker {
         // FlatFileParseException-Spezifika extrahieren (file + line stehen im message-String,
         // aber wenn die konkrete Exception die richtigen Getter hat, holen wir's strukturiert).
         try {
-            if (t instanceof org.springframework.batch.item.file.FlatFileParseException) {
-                org.springframework.batch.item.file.FlatFileParseException ffpe =
-                        (org.springframework.batch.item.file.FlatFileParseException) t;
+            if (t instanceof org.springframework.batch.item.file.FlatFileParseException ffpe) {
                 r.lineNumber = ffpe.getLineNumber();
                 r.input = ffpe.getInput();
             }

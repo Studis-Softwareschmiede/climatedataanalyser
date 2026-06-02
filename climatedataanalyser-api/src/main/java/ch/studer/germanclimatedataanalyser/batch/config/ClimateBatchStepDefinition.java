@@ -7,29 +7,24 @@ import ch.studer.germanclimatedataanalyser.model.database.StationWeatherPerYear;
 import ch.studer.germanclimatedataanalyser.service.db.ClimateService;
 import ch.studer.germanclimatedataanalyser.service.db.StationWeatherService;
 import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @Configuration
 public class ClimateBatchStepDefinition {
 
-    private final JobBuilderFactory jobBuilderFactoryImport;
-    private final StepBuilderFactory stepBuilderFactoryImport;
     private final WeatherReader weatherReader;
     private final ClimateService climateService;
     private final StationWeatherService stationWeatherService;
 
-    public ClimateBatchStepDefinition(JobBuilderFactory jobBuilderFactoryImport,
-                                      StepBuilderFactory stepBuilderFactoryImport,
-                                      WeatherReader weatherReader,
+    public ClimateBatchStepDefinition(WeatherReader weatherReader,
                                       ClimateService climateService,
                                       StationWeatherService stationWeatherService) {
-        this.jobBuilderFactoryImport = jobBuilderFactoryImport;
-        this.stepBuilderFactoryImport = stepBuilderFactoryImport;
         this.weatherReader = weatherReader;
         this.climateService = climateService;
         this.stationWeatherService = stationWeatherService;
@@ -48,11 +43,11 @@ public class ClimateBatchStepDefinition {
     }
 
     @Bean("importClimateRecords")
-    public Step importClimateRecords() {
+    public Step importClimateRecords(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
         // Step-Name kebab-case wie die anderen 4 (import-{temperature,station,weather,climate}-records).
         // Wird ins BATCH_STEP_EXECUTION geschrieben und vom GUI-Skeleton gematcht.
-        return stepBuilderFactoryImport.get("import-climate-records")
-                .<StationWeatherPerYear, StationWeatherPerYear>chunk(5000)
+        return new StepBuilder("import-climate-records", jobRepository)
+                .<StationWeatherPerYear, StationWeatherPerYear>chunk(5000, transactionManager)
                 //.reader(temperatureFromDbReader())
                 .reader(weatherReader.getWeatherFromDbReader())
                 //.listener(new StepProcessorListener(statistics()))

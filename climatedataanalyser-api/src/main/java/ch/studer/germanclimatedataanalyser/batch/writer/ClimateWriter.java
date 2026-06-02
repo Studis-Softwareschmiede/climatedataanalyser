@@ -6,6 +6,7 @@ import ch.studer.germanclimatedataanalyser.service.db.ClimateService;
 import ch.studer.germanclimatedataanalyser.service.db.StationWeatherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -28,12 +29,12 @@ public class ClimateWriter implements ItemWriter<StationWeatherPerYear> {
     private static final Logger LOG = LoggerFactory.getLogger(ClimateWriter.class);
 
     @Override
-    public void write(List<? extends StationWeatherPerYear> list) {
+    public void write(Chunk<? extends StationWeatherPerYear> list) throws Exception {
 
-        if (list.size() > 0) {
+        if (list.getItems().size() > 0) {
 
             List<StationWeatherPerYear> stationWeatherPerYearsGroupedByStationID = new ArrayList<StationWeatherPerYear>();
-            int actualStationId = list.get(0).getStationID();
+            int actualStationId = list.getItems().get(0).getStationID();
 
             for (StationWeatherPerYear stationWeatherPerYear : list) {
 

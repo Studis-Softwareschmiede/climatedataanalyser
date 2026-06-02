@@ -1,6 +1,6 @@
 package ch.studer.germanclimatedataanalyser.model.database;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "WEATHER")

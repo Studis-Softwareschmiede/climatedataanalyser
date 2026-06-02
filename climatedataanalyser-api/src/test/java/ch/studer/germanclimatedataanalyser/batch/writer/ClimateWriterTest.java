@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.batch.item.Chunk;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -72,7 +73,7 @@ class ClimateWriterTest {
 
         // Test Happy Flow ClimateWrite and Assert exception == null
         try {
-            climateWriter.write(stationWeatherPerYearList);
+            climateWriter.write(new Chunk<>(stationWeatherPerYearList));
         } catch (Exception e) {
             e.printStackTrace();
             exception = e;

@@ -5,6 +5,7 @@ import ch.studer.germanclimatedataanalyser.model.database.StationWeatherPerYear;
 import ch.studer.germanclimatedataanalyser.service.db.StationWeatherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
 
 import java.util.ArrayList;
@@ -24,16 +25,16 @@ public class WeatherWriter implements ItemWriter<Month> {
 
 
     @Override
-    public void write(List<? extends Month> list) {
+    public void write(Chunk<? extends Month> list) throws Exception {
 
 
         List<StationWeatherPerYear> write = new ArrayList<StationWeatherPerYear>();
 
-        String processingEndDate = getActualYear(list.get(0).getMessDatumEnde().toString());
-        String actualEndDate = getActualYear(list.get(0).getMessDatumEnde().toString());
+        String processingEndDate = getActualYear(list.getItems().get(0).getMessDatumEnde().toString());
+        String actualEndDate = getActualYear(list.getItems().get(0).getMessDatumEnde().toString());
 
         // get first StationTemperature Record
-        stationWeatherPerYear = new StationWeatherPerYear(Integer.valueOf(list.get(0).getStationsId()));
+        stationWeatherPerYear = new StationWeatherPerYear(Integer.valueOf(list.getItems().get(0).getStationsId()));
 
         for (Month m : list) {
             // check if last station ID = new StationID

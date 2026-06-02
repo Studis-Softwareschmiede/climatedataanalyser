@@ -1,9 +1,6 @@
 package ch.studer.germanclimatedataanalyser.service.ui.climateRecords;
 
-import ch.studer.germanclimatedataanalyser.generate.test.data.ClimateTestData;
 import ch.studer.germanclimatedataanalyser.model.dto.climaterecords.ClimateRecordsDto;
-import ch.studer.germanclimatedataanalyser.service.db.ClimateService;
-import org.junit.Before;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,14 +15,6 @@ import org.springframework.test.context.jdbc.Sql;
 public class ClimateRecordsServiceIntegrationTest {
     @Autowired
     ClimateRecordService climateRecordService;
-
-    @Autowired
-    ClimateService climateService;
-
-    @Before
-    public void setup() {
-        climateService.saveAllClimateAtStationId(ClimateTestData.getStationClimateOrderByStationIdAndBeginYearRemoveLater(1879, 2020, 10));
-    }
 
 
     @Test

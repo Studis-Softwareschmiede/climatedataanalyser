@@ -23,19 +23,21 @@ public class DbLoadInformationeImpl implements DbLoadInformationeDAO {
     @Override
     public List<DbLoadRowMapper.JobExecutionInformation> getDbLoadInformation() {
         return jdbcTemplate.query(
-                "SELECT j.End_Time\n" +
-                        "      ,j.Status\n" +
-                        "      ,s.Step_Name\n" +
-                        "      ,s.Start_Time\n" +
-                        "      ,s.End_Time as Step_End_Time\n" +
-                        "      ,s.Read_Count\n" +
-                        "      ,s.Write_Count\n" +
-                        "      ,s.Status as Step_Status\n" +
-                        "      ,s.Exit_Message as Step_Exit_Message\n" +
-                        "      FROM CLIMATE.BATCH_JOB_EXECUTION j ,CLIMATE.BATCH_STEP_EXECUTION s\n" +
-                        "where j.Job_execution_id = s.job_execution_id \n" +
-                        "and j.job_execution_id = (select max(JOB_EXECUTION_ID) from CLIMATE.BATCH_JOB_EXECUTION)\n" +
-                        "order by s.step_execution_id;", new DbLoadRowMapper());
+                """
+                SELECT j.End_Time
+                      ,j.Status
+                      ,s.Step_Name
+                      ,s.Start_Time
+                      ,s.End_Time as Step_End_Time
+                      ,s.Read_Count
+                      ,s.Write_Count
+                      ,s.Status as Step_Status
+                      ,s.Exit_Message as Step_Exit_Message
+                      FROM CLIMATE.BATCH_JOB_EXECUTION j ,CLIMATE.BATCH_STEP_EXECUTION s
+                where j.Job_execution_id = s.job_execution_id\s
+                and j.job_execution_id = (select max(JOB_EXECUTION_ID) from CLIMATE.BATCH_JOB_EXECUTION)
+                order by s.step_execution_id;\
+                """, new DbLoadRowMapper());
     }
 
     @Override
