@@ -24,7 +24,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.FileNotFoundException;
 
@@ -124,7 +123,6 @@ public class StationBatchStepDefinition {
         }
     }
 
-    @Transactional
     @Bean
     public Step importStations() {
         return stepBuilderFactoryImport.get("import-station-records")
