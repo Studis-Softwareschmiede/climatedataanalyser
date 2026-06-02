@@ -56,6 +56,35 @@ Ohne gesetzte Env-Vars verweigert Spring Boot den Start (DataSource-Konfiguratio
 
 Tests sind davon **nicht** betroffen: `test-it.properties` konfiguriert eine In-Memory-H2-Datenbank und braucht keine echten Credentials.
 
+## Release
+
+Ein Release entsteht durch ein annotiertes git-Tag:
+
+```bash
+git tag -a v1.2.3 -m "Release v1.2.3"
+git push --tags
+```
+
+Die CI-Pipeline (`.github/workflows/release.yml`) wird dadurch ausgelöst und:
+
+1. Führt den Secret-Scan (gitleaks) und `mvn test` als Gates aus.
+2. Baut das Docker-Image und pusht es nach `ghcr.io/studis-softwareschmiede/climatedataanalyser` mit drei Tags:
+   - `1.2.3` (exakte Version)
+   - `1.2` (Major.Minor — zeigt immer auf das neueste Patch-Release)
+   - `latest` (neuestes Release insgesamt)
+3. Legt ein GitHub-Release mit automatisch generierten Release-Notes an.
+
+**Versionierungs-Konvention:** Die `pom.xml` behält `*-SNAPSHOT` für die laufende Entwicklung (Dev-Build via `build.yml` bei Push auf master). Die Release-Identität ist ausschliesslich das git-Tag und der daraus abgeleitete Image-Tag — keine manuelle `pom.xml`-Änderung nötig, bevor man taggt.
+
+**Prod-Deployment:** Prod-Umgebungen MÜSSEN ein fixes Versions-Tag verwenden (z. B. `1.2.3`), niemals `latest`. Das verhindert unbeabsichtigte Updates bei `docker compose pull`.
+
+```yaml
+# docker-compose.prod.yml — Beispiel
+services:
+  app:
+    image: ghcr.io/studis-softwareschmiede/climatedataanalyser:1.2.3
+```
+
 ## Credential-Rotation
 
 Um die DB-Credentials zu rotieren:
