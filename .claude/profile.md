@@ -32,7 +32,7 @@ adoption_validated_migration_tool: flyway       # Skeleton-Runner entfernt; Sche
 # /upgrade-Lauf (Spec docs/specs/upgrade-2026-06-02-upgrade.md)
 upgrade:
   run_id: 2026-06-02-upgrade
-  status: planning                                # planning → executing (vor 1. /flow-Item) → done|blocked
+  status: executing                               # planning → executing (vor 1. /flow-Item) → done|blocked
   timeout_hours: 8                                # weiche Obergrenze für Overnight-Lauf
   tracking_issue: 91
   targets:
