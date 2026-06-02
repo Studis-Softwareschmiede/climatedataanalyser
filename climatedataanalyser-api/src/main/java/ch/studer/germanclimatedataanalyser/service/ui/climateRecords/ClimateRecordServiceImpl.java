@@ -7,7 +7,6 @@ import ch.studer.germanclimatedataanalyser.model.dto.climaterecords.ClimateRecor
 import ch.studer.germanclimatedataanalyser.model.dto.climaterecords.ClimateRecordsDto;
 import ch.studer.germanclimatedataanalyser.model.dto.helper.Bundesland;
 import ch.studer.germanclimatedataanalyser.model.dto.helper.GpsPoint;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,14 +14,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("SpringJavaAutowiredMembersInspection")
 public class ClimateRecordServiceImpl implements ClimateRecordService {
 
-    @Autowired
-    StationClimateDAO stationClimateDAO;
-
-    @Autowired
-    Bundesland bundeslandProofer;
+    private final StationClimateDAO stationClimateDAO;
+    private final Bundesland bundeslandProofer;
 
     //InputParameter
     private Bundesland bundesland;
@@ -31,7 +26,9 @@ public class ClimateRecordServiceImpl implements ClimateRecordService {
     private String year;
     private int distanceYear;
 
-    public ClimateRecordServiceImpl() {
+    public ClimateRecordServiceImpl(StationClimateDAO stationClimateDAO, Bundesland bundeslandProofer) {
+        this.stationClimateDAO = stationClimateDAO;
+        this.bundeslandProofer = bundeslandProofer;
         this.bundesland = new Bundesland();
         this.year = "";
         this.distanceYear = 0;

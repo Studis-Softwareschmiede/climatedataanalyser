@@ -2,7 +2,6 @@ package ch.studer.germanclimatedataanalyser.service.db;
 
 import ch.studer.germanclimatedataanalyser.dao.MonthDAO;
 import ch.studer.germanclimatedataanalyser.model.database.Month;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,8 +10,11 @@ import java.util.List;
 @Service
 public class MonthServiceImpl implements MonthService {
 
-    @Autowired
-    private MonthDAO monthDAO;
+    private final MonthDAO monthDAO;
+
+    public MonthServiceImpl(MonthDAO monthDAO) {
+        this.monthDAO = monthDAO;
+    }
 
     @Override
     @Transactional

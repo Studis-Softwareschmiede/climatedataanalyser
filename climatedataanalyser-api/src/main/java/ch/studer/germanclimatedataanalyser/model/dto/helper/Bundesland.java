@@ -1,16 +1,22 @@
 package ch.studer.germanclimatedataanalyser.model.dto.helper;
 
 import ch.studer.germanclimatedataanalyser.service.db.StationService;
-import org.springframework.beans.factory.annotation.Autowired;
 
 public class Bundesland {
 
-    @Autowired
-    StationService stationService;
+    private final StationService stationService;
 
     String name;
 
+    /** Constructor for Spring-managed bean (with full DI). */
+    public Bundesland(StationService stationService) {
+        this.stationService = stationService;
+        this.name = "";
+    }
+
+    /** No-arg constructor for plain name-holder usage (stationService not needed). */
     public Bundesland() {
+        this.stationService = null;
         this.name = "";
     }
 

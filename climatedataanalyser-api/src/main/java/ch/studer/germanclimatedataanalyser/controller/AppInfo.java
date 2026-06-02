@@ -1,7 +1,6 @@
 package ch.studer.germanclimatedataanalyser.controller;
 
 import ch.studer.germanclimatedataanalyser.model.dto.AppInfo.AppInfoDto;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,8 +17,11 @@ import java.time.format.DateTimeFormatter;
 @CrossOrigin
 public class AppInfo {
 
-    @Autowired
-    BuildProperties buildProperties;
+    private final BuildProperties buildProperties;
+
+    public AppInfo(BuildProperties buildProperties) {
+        this.buildProperties = buildProperties;
+    }
 
     @GetMapping("/")
     AppInfoDto appinfo() {

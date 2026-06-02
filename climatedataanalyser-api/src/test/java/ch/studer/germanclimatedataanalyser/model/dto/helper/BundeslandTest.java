@@ -22,11 +22,11 @@ class BundeslandTest {
     StationService stationService;
 
     @InjectMocks
-    Bundesland bundesland = new Bundesland();
+    Bundesland bundesland;
 
 
     @InjectMocks
-    Bundesland non_existing_bundesland = new Bundesland();
+    Bundesland non_existing_bundesland;
 
     @Test
     void exists() {

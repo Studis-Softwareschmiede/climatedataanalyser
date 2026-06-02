@@ -3,19 +3,18 @@ package ch.studer.germanclimatedataanalyser.service.ui.dbController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 public class DbStatusInformationServiceImpl implements DbStatusInformationService, InitializingBean {
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
     private DbStatusEnum dbStatus;
 
     private static final Logger log = LoggerFactory.getLogger(DbStatusInformationServiceImpl.class);
 
-    public DbStatusInformationServiceImpl() {
+    public DbStatusInformationServiceImpl(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**

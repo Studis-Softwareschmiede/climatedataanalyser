@@ -3,7 +3,6 @@ package ch.studer.germanclimatedataanalyser.batch.reader;
 import ch.studer.germanclimatedataanalyser.model.database.Month;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 
 import javax.sql.DataSource;
@@ -12,8 +11,11 @@ import java.sql.SQLException;
 
 public class MonthReader {
 
-    @Autowired
-    DataSource dataSource;
+    private final DataSource dataSource;
+
+    public MonthReader(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     public JdbcCursorItemReader<Month> getMonthFromDbReader() {
         return new JdbcCursorItemReaderBuilder<Month>()

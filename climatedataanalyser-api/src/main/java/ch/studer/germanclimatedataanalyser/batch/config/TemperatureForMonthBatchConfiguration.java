@@ -8,6 +8,7 @@ import ch.studer.germanclimatedataanalyser.batch.writer.TemperatureForMonthDBWri
 import ch.studer.germanclimatedataanalyser.common.DirectoryUtilityImpl;
 import ch.studer.germanclimatedataanalyser.model.database.Month;
 import ch.studer.germanclimatedataanalyser.model.file.MonthFile;
+import ch.studer.germanclimatedataanalyser.service.db.MonthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Step;
@@ -20,7 +21,6 @@ import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.batch.item.file.transform.IncorrectTokenCountException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,17 +31,23 @@ import org.springframework.core.io.Resource;
 @Configuration
 public class TemperatureForMonthBatchConfiguration {
 
-    @Autowired
-    private StepBuilderFactory stepBuilderFactoryImport;
-
-    @Autowired
-    private SkippedRecordTracker skippedRecordTracker;
+    private final StepBuilderFactory stepBuilderFactoryImport;
+    private final SkippedRecordTracker skippedRecordTracker;
+    private final MonthService monthService;
 
     @Value("${climate.path.temperature.input.file.pattern}")
     private String inputFilePattern;
 
     @Value("${climate.path.inputFolderName}")
     private String inputDirectoryName;
+
+    public TemperatureForMonthBatchConfiguration(StepBuilderFactory stepBuilderFactoryImport,
+                                                 SkippedRecordTracker skippedRecordTracker,
+                                                 MonthService monthService) {
+        this.stepBuilderFactoryImport = stepBuilderFactoryImport;
+        this.skippedRecordTracker = skippedRecordTracker;
+        this.monthService = monthService;
+    }
 
     private static final Logger log = LoggerFactory.getLogger(TemperatureForMonthBatchConfiguration.class);
 
@@ -116,7 +122,7 @@ public class TemperatureForMonthBatchConfiguration {
     @Bean
     @StepScope
     public TemperatureForMonthDBWriter monthWriter() {
-        return new TemperatureForMonthDBWriter();
+        return new TemperatureForMonthDBWriter(monthService);
     }
 
 
