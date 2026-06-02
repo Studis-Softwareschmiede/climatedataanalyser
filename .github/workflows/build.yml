@@ -5,7 +5,8 @@
 name: build
 on:
   push:
-    branches: [main]
+    # main = new-project default; master = Fork-Default dieses Org-Forks
+    branches: [main, master]
 permissions:
   contents: read
   packages: write
