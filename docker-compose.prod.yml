@@ -1,0 +1,55 @@
+# Production Compose — climatedataanalyser
+#
+# Unterschied zu docker-compose.yml (Dev):
+#  - db-Service hat KEIN `ports:` — nur `expose: ["3306"]` (Compose-intern).
+#    Die DB ist damit nur für andere Services im selben Compose-Netzwerk
+#    erreichbar und NICHT vom Host aus (Spec §15-R7).
+#  - app-Service ist nach außen erreichbar (ports bleibt, das ist der Einstiegspunkt).
+#
+# Start: docker compose -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    env_file:
+      - .env.db
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    expose:
+      - "3306"
+
+  migrations:
+    image: mariadb:11
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.db
+    volumes:
+      - ./db_scripts:/db_scripts:ro
+    entrypoint: ["/db_scripts/run-migrations.sh"]
+
+  app:
+    image: ghcr.io/studis-softwareschmiede/climatedataanalyser:latest
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.db
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/CLIMATE?zeroDateTimeBehavior=CONVERT_TO_NULL&serverTimezone=Europe/Berlin"
+    ports:
+      - "${APP_PORT:-8092}:8092"
+
+volumes:
+  db_data: {}
