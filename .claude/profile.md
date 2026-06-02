@@ -15,6 +15,7 @@ test: "mvn -B -ntp test"
 lint: "mvn -B -ntp -DskipTests verify"
 smoke: "curl -fsS -o /dev/null -w '%{http_code}' http://localhost:8080/actuator/health || true"
 merge_policy: pr
+default_branch: master                            # Org-Fork von Alexstuder/climatedataanalyser → Default ist master (nicht main). /flow nutzt das für PR-Base, direct-Push und CI-Watch. Fork-PRs IMMER mit `gh pr create --repo <org-fork>` (origin-URL), sonst zielt gh aufs Upstream-Parent → "Resource not accessible by integration".
 board: 9                                          # Org-Project https://github.com/orgs/Studis-Softwareschmiede/projects/9 (angelegt 2026-06-01 nach GitHub-App-Auth-Wechsel via ensure-gh-auth.sh)
 deploy: docker
 image: ghcr.io/studis-softwareschmiede/climatedataanalyser
