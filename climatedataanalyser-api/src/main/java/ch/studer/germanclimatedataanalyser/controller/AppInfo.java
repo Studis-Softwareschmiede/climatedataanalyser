@@ -2,7 +2,6 @@ package ch.studer.germanclimatedataanalyser.controller;
 
 import ch.studer.germanclimatedataanalyser.model.dto.AppInfo.AppInfoDto;
 import org.springframework.boot.info.BuildProperties;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,7 +13,6 @@ import java.time.format.DateTimeFormatter;
 
 @RestController
 @RequestMapping("/api/appInfo")
-@CrossOrigin
 public class AppInfo {
 
     private final BuildProperties buildProperties;
