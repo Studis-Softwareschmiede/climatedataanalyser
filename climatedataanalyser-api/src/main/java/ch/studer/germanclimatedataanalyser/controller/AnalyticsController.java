@@ -17,7 +17,6 @@ This RestController will be replaced by the new controllers
 
 @RestController
 @RequestMapping("/api/analytics")
-@CrossOrigin
 public class AnalyticsController {
 
     private final StationService stationService;
