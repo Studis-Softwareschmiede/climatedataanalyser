@@ -3,7 +3,6 @@ package ch.studer.germanclimatedataanalyser.batch.reader;
 import ch.studer.germanclimatedataanalyser.model.database.StationWeatherPerYear;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 
 import javax.sql.DataSource;
@@ -12,8 +11,11 @@ import java.sql.SQLException;
 
 public class WeatherReader {
 
-    @Autowired
-    DataSource dataSource;
+    private final DataSource dataSource;
+
+    public WeatherReader(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     public JdbcCursorItemReader<StationWeatherPerYear> getWeatherFromDbReader() {
         return new JdbcCursorItemReaderBuilder<StationWeatherPerYear>()

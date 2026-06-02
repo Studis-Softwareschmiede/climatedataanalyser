@@ -4,7 +4,6 @@ import ch.studer.germanclimatedataanalyser.model.database.Month;
 import org.hibernate.Session;
 import org.hibernate.jpa.QueryHints;
 import org.hibernate.query.Query;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityManager;
@@ -14,8 +13,11 @@ import java.util.List;
 @Repository
 public class MonthDAOImpl implements MonthDAO {
 
-    @Autowired
-    private EntityManager entityManager;
+    private final EntityManager entityManager;
+
+    public MonthDAOImpl(EntityManager entityManager) {
+        this.entityManager = entityManager;
+    }
 
     private final List<Month> months = null;
 

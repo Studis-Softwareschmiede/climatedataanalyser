@@ -4,7 +4,6 @@ import ch.studer.germanclimatedataanalyser.dao.StationWeatherDAO;
 import ch.studer.germanclimatedataanalyser.model.database.StationWeatherPerYear;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +16,11 @@ import java.util.List;
 @Service
 public class StationWeatherServiceImpl implements StationWeatherService {
 
-    @Autowired
-    StationWeatherDAO stationWeatherDAO;
+    private final StationWeatherDAO stationWeatherDAO;
+
+    public StationWeatherServiceImpl(StationWeatherDAO stationWeatherDAO) {
+        this.stationWeatherDAO = stationWeatherDAO;
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(StationWeatherServiceImpl.class);
 

@@ -57,7 +57,7 @@ class ClimateRecordServiceImplTest {
 
 
     @InjectMocks
-    ClimateRecordService climateRecordService = new ClimateRecordServiceImpl();
+    ClimateRecordServiceImpl climateRecordService;
 
     @Test
     @Ignore
@@ -294,7 +294,7 @@ class ClimateRecordServiceImplTest {
     void getStationClimatesFromYearWithDistance() {
 
 
-        ClimateRecordServiceImpl climateRecordService = new ClimateRecordServiceImpl();
+        ClimateRecordServiceImpl climateRecordService = new ClimateRecordServiceImpl(null, null);
         // get test List<ClimateRecords> as readed from Table
         try {
             Method method = ClimateRecordServiceImpl.class.getDeclaredMethod("getStationClimatesFromYearWithDistance", int.class, List.class);
@@ -357,7 +357,7 @@ class ClimateRecordServiceImplTest {
 
         List<String> relevantYears;
         List<String> expected = Arrays.asList("1900");
-        ClimateRecordServiceImpl climateRecordService = new ClimateRecordServiceImpl();
+        ClimateRecordServiceImpl climateRecordService = new ClimateRecordServiceImpl(null, null);
         try {
             Method method = ClimateRecordServiceImpl.class
                     .getDeclaredMethod("getRelevantYears", int.class, int.class, int.class);
@@ -389,7 +389,7 @@ class ClimateRecordServiceImplTest {
             //Prepare TestData
             List<StationClimate> stationClimates = ClimateTestData.getStationClimateOrderByBeginYearAndStationId(1900, 1910, 5);
             //Prepare private Methode for testing
-            ClimateRecordServiceImpl climateRecordService = new ClimateRecordServiceImpl();
+            ClimateRecordServiceImpl climateRecordService = new ClimateRecordServiceImpl(null, null);
             Method method = ClimateRecordServiceImpl.class.getDeclaredMethod("getAverageClimatePerYear", List.class);
             method.setAccessible(true);
 
@@ -436,7 +436,7 @@ class ClimateRecordServiceImplTest {
         List<ClimateRecord> climateRecords = getTestDataForDifference();
         List<ClimateRecord> climateRecordsExpect = new ArrayList<ClimateRecord>();
         //Prepare private Methode for testing
-        ClimateRecordServiceImpl climateRecordService = new ClimateRecordServiceImpl();
+        ClimateRecordServiceImpl climateRecordService = new ClimateRecordServiceImpl(null, null);
         Method method = null;
 
         try {

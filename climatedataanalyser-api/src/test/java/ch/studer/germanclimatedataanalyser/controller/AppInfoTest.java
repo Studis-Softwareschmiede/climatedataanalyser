@@ -19,9 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AppInfoTest {
 
     private AppInfo appInfoWith(Properties props) {
-        AppInfo appInfo = new AppInfo();
-        appInfo.buildProperties = new BuildProperties(props); // package-private Feld, gleicher Package
-        return appInfo;
+        return new AppInfo(new BuildProperties(props));
     }
 
     @Test

@@ -15,7 +15,7 @@ import java.util.List;
 
 class StationWeatherServiceImplTest {
 
-    StationWeatherServiceImpl stationWeatherService = new StationWeatherServiceImpl();
+    StationWeatherServiceImpl stationWeatherService = new StationWeatherServiceImpl(null);
 
 
     private static final Logger LOG = LoggerFactory.getLogger(StationWeatherServiceImplTest.class);

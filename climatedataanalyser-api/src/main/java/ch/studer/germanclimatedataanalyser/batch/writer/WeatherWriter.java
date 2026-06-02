@@ -6,17 +6,19 @@ import ch.studer.germanclimatedataanalyser.service.db.StationWeatherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class WeatherWriter implements ItemWriter<Month> {
 
-    @Autowired
-    StationWeatherService stationWeatherService;
+    private final StationWeatherService stationWeatherService;
 
     StationWeatherPerYear stationWeatherPerYear;
+
+    public WeatherWriter(StationWeatherService stationWeatherService) {
+        this.stationWeatherService = stationWeatherService;
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(WeatherWriter.class);
 

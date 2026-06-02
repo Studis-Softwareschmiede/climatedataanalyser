@@ -2,6 +2,7 @@ package ch.studer.germanclimatedataanalyser;
 
 import ch.studer.germanclimatedataanalyser.batch.reader.MonthReader;
 import ch.studer.germanclimatedataanalyser.batch.reader.WeatherReader;
+import ch.studer.germanclimatedataanalyser.dao.StationClimateDAO;
 import ch.studer.germanclimatedataanalyser.model.dto.helper.Bundesland;
 import ch.studer.germanclimatedataanalyser.service.db.*;
 import ch.studer.germanclimatedataanalyser.service.ui.analytics.ClimateAnalyserService;
@@ -16,60 +17,56 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 
+import javax.sql.DataSource;
 import java.util.Properties;
 
 @Configuration
 public class GermanClimateDataAnalyserApplicationContext {
 
     @Bean
-    ClimateService climateService() {
-        return new ClimateServiceImpl();
+    ClimateService climateService(StationClimateDAO stationClimateDAO) {
+        return new ClimateServiceImpl(stationClimateDAO);
     }
 
     @Bean
-    MonthService monthService() {
-        return new MonthServiceImpl();
+    MonthReader monthReader(DataSource dataSource) {
+        return new MonthReader(dataSource);
     }
 
     @Bean
-    StationService stationService() {
-        return new StationServiceImpl();
+    WeatherReader weatherReader(DataSource dataSource) {
+        return new WeatherReader(dataSource);
     }
 
     @Bean
-    MonthReader monthReader() {
-        return new MonthReader();
+    ClimateAnalyserService climateAnalyserService(ClimateService climateService, StationService stationService) {
+        return new ClimateAnalyserServiceImpl(climateService, stationService);
     }
 
     @Bean
-    WeatherReader weatherReader() {
-        return new WeatherReader();
+    DbLoadInformationService dbLoadInformationService(
+            ch.studer.germanclimatedataanalyser.dao.DbLoadInformationeDAO dbLoadInformationeDAO,
+            DbStatusInformationService dbStatusInformationService) {
+        return new DbLoadInformationServiceImpl(dbLoadInformationeDAO, dbStatusInformationService);
     }
 
     @Bean
-    ClimateAnalyserService climateAnalyserService() {
-        return new ClimateAnalyserServiceImpl();
+    ClimateRecordService climateRecordService(
+            StationClimateDAO stationClimateDAO,
+            Bundesland bundeslandProofer) {
+        return new ClimateRecordServiceImpl(stationClimateDAO, bundeslandProofer);
     }
 
     @Bean
-    DbLoadInformationService dbLoadInformationService() {
-        return new DbLoadInformationServiceImpl();
+    Bundesland bundesland(StationService stationService) {
+        return new Bundesland(stationService);
     }
 
     @Bean
-    ClimateRecordService climateRecordService() {
-        return new ClimateRecordServiceImpl();
-    }
-
-    @Bean
-    Bundesland bundesland() {
-        return new Bundesland();
-    }
-
-    @Bean
-    DbStatusInformationService dbStatus() {
-        return new DbStatusInformationServiceImpl();
+    DbStatusInformationService dbStatus(JdbcTemplate jdbcTemplate) {
+        return new DbStatusInformationServiceImpl(jdbcTemplate);
     }
 
     @ConditionalOnMissingBean

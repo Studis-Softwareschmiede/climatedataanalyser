@@ -2,7 +2,6 @@ package ch.studer.germanclimatedataanalyser.controller;
 
 import ch.studer.germanclimatedataanalyser.model.dto.climaterecords.ClimateRecordsDto;
 import ch.studer.germanclimatedataanalyser.service.ui.climateRecords.ClimateRecordService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -10,8 +9,11 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin
 public class Climates {
 
-    @Autowired
-    private ClimateRecordService climateRecordService;
+    private final ClimateRecordService climateRecordService;
+
+    public Climates(ClimateRecordService climateRecordService) {
+        this.climateRecordService = climateRecordService;
+    }
 
 
     @GetMapping("/")

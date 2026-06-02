@@ -3,7 +3,6 @@ package ch.studer.germanclimatedataanalyser.service.db;
 import ch.studer.germanclimatedataanalyser.dao.StationDAO;
 import ch.studer.germanclimatedataanalyser.model.database.Station;
 import javassist.NotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,8 +11,11 @@ import java.util.List;
 @Component
 public class StationServiceImpl implements StationService {
 
-    @Autowired
-    private StationDAO stationDAO;
+    private final StationDAO stationDAO;
+
+    public StationServiceImpl(StationDAO stationDAO) {
+        this.stationDAO = stationDAO;
+    }
 
     @Override
     @Transactional

@@ -5,7 +5,6 @@ import org.hibernate.Session;
 import org.hibernate.query.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityManager;
@@ -14,8 +13,11 @@ import java.util.List;
 @Repository
 public class StationWeatherImpl implements StationWeatherDAO {
 
-    @Autowired
-    private EntityManager entityManager;
+    private final EntityManager entityManager;
+
+    public StationWeatherImpl(EntityManager entityManager) {
+        this.entityManager = entityManager;
+    }
 
     private Session getSession() {
         return entityManager.unwrap(Session.class);

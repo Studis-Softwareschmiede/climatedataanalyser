@@ -3,7 +3,6 @@ package ch.studer.germanclimatedataanalyser.dao;
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbLoadRowMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -12,8 +11,11 @@ import java.util.List;
 @Repository
 public class DbLoadInformationeImpl implements DbLoadInformationeDAO {
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
+
+    public DbLoadInformationeImpl(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(DbLoadInformationeImpl.class);
 
