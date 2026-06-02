@@ -1,13 +1,15 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, OnDestroy, OnInit} from '@angular/core';
 import {FormBuilder, FormControl, FormGroup} from '@angular/forms';
 import {ApiService} from '../shared/api.service';
 import {ClimateResponseDto} from './model/ClimateResponseDto';
 import {HttpEventType} from '@angular/common/http';
+import {Subject} from 'rxjs';
+import {takeUntil} from 'rxjs/operators';
 
 @Component({
   selector: 'app-climates', templateUrl: './climates.component.html', styleUrls: ['./climates.component.css']
 })
-export class ClimatesComponent implements OnInit {
+export class ClimatesComponent implements OnInit, OnDestroy {
 
   bundeslaender: Array<string>;
   selectedBundesland: string;
@@ -17,6 +19,8 @@ export class ClimatesComponent implements OnInit {
   private distanceYear;
   private fb: FormBuilder;
   private zero: string;
+
+  private destroy$ = new Subject<void>();
 
   constructor(private apiService: ApiService, fb: FormBuilder) {
     this.fb = fb;
@@ -28,9 +32,14 @@ export class ClimatesComponent implements OnInit {
     this.zero = '0';
   }
 
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   reset() {
     this.bundeslaender = null;
-    setTimeout(this.initClimates, 1000);
+    setTimeout(() => this.initClimates(), 1000);
     alert('Timeout');
   }
 
@@ -45,6 +54,7 @@ export class ClimatesComponent implements OnInit {
       , this.angForm.value.valueOf().gps2long
       , this.angForm.value.valueOf().startYear
       , this.angForm.value.valueOf().distanceYear)
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (value) => {
           switch (value.type) {
@@ -61,13 +71,15 @@ export class ClimatesComponent implements OnInit {
 
   initClimates() {
 
-    this.apiService.initAnalytics().subscribe(value => {
-      this.bundeslaender = value;
-      console.log('Bundesland versucht zu laden !');
-      console.log(this.bundeslaender);
-    }, error => {
-      alert('An error occurred while init Analytics, trying to get all Bundeslaender from Backend !');
-    });
+    this.apiService.initAnalytics()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(value => {
+        this.bundeslaender = value;
+        console.log('Bundesland versucht zu laden !');
+        console.log(this.bundeslaender);
+      }, error => {
+        alert('An error occurred while init Analytics, trying to get all Bundeslaender from Backend !');
+      });
 
   }
 
@@ -84,6 +96,7 @@ export class ClimatesComponent implements OnInit {
       , this.zero
       , this.startYear
       , this.distanceYear)
+      .pipe(takeUntil(this.destroy$))
       .subscribe(value => {
 
         switch (value.type) {
