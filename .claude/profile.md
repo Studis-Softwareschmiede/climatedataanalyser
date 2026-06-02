@@ -20,9 +20,11 @@ board: 9                                          # Org-Project https://github.c
 deploy: docker
 image: ghcr.io/studis-softwareschmiede/climatedataanalyser
 registry: ghcr
+container_port: 8092                              # from Dockerfile EXPOSE
+preview_port: 8080                                # first free host port ab 8080 (persisted by /preview up 2026-06-02)
 
-# Validate-Cache (Phase 5 — End-to-End-Smoke gegen db_scripts/000_init_meta.sql)
-adoption_validated_at: null                     # invalidiert: db_migration_tool skeleton→flyway (#17) — re-validate beim nächsten /preview up
+# Validate-Cache (Phase 5 — End-to-End-Smoke: Flyway V1→V2 auf frischer DB beim App-Boot)
+adoption_validated_at: 2026-06-02               # re-validate PASS: Flyway V1→V2 auf frischer DB beim App-Boot, / →200 (Skeleton-Leftover db_scripts/ entfernt, #17-Nachzug)
 adoption_validated_dialect: mysql
 adoption_validated_companions: []
-adoption_validated_migration_tool: skeleton     # Audit-Trail: was zuletzt validiert wurde (vor #17)
+adoption_validated_migration_tool: flyway       # Skeleton-Runner entfernt; Schema-Hoheit liegt bei Flyway (climatedataanalyser-api/.../db/migration)

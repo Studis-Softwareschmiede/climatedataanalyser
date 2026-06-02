@@ -25,17 +25,12 @@ services:
     expose:
       - "3306"
 
-  migrations:
-    image: mariadb:11
-    restart: "no"
-    depends_on:
-      db:
-        condition: service_healthy
-    env_file:
-      - .env.db
-    volumes:
-      - ./db_scripts:/db_scripts:ro
-    entrypoint: ["/db_scripts/run-migrations.sh"]
+  # Schema-Migration läuft IM App-Container beim Boot via Flyway
+  # (spring.flyway.enabled=true; V1__init → V2__indexes_and_hardening unter
+  # climatedataanalyser-api/src/main/resources/db/migration). Kein separater
+  # migrations-Service: der frühere Skeleton-Runner (db_scripts/run-migrations.sh)
+  # legte _schema_migrations an → DB nicht-leer → Flyway baseline-skip V1 →
+  # V2 "Table STATION doesn't exist". Entfernt als Nachzug zu #17 (skeleton→flyway).
 
   app:
     image: ghcr.io/studis-softwareschmiede/climatedataanalyser:latest

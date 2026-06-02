@@ -15,9 +15,8 @@ climatedataanalyser-ng/src/main/web/node_modules/
 *.iml
 .vscode/
 
-# Local docs and scripts not needed in image
+# Local docs not needed in image
 docs/
-db_scripts/
 
 # Log files
 *.log
