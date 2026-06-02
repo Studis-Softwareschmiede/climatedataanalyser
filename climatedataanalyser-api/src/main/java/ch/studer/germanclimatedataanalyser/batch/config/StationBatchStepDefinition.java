@@ -6,6 +6,7 @@ import ch.studer.germanclimatedataanalyser.batch.writer.StationDBWriter;
 import ch.studer.germanclimatedataanalyser.common.DirectoryUtilityImpl;
 import ch.studer.germanclimatedataanalyser.model.database.Station;
 import ch.studer.germanclimatedataanalyser.model.file.StationFile;
+import ch.studer.germanclimatedataanalyser.service.db.StationService;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
@@ -19,7 +20,6 @@ import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.FixedLengthTokenizer;
 import org.springframework.batch.item.file.transform.IncorrectTokenCountException;
 import org.springframework.batch.item.file.transform.Range;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,17 +36,23 @@ public class StationBatchStepDefinition {
 
     private static final Logger log = LoggerFactory.getLogger(StationBatchStepDefinition.class);
 
-    @Autowired
-    private StepBuilderFactory stepBuilderFactoryImport;
-
-    @Autowired
-    private SkippedRecordTracker skippedRecordTracker;
+    private final StepBuilderFactory stepBuilderFactoryImport;
+    private final SkippedRecordTracker skippedRecordTracker;
+    private final StationService stationService;
 
     @Value("${climate.path.ftpDataFolderName}")
     private String ftpDirectoryName;
 
     @Value("${climate.path.station.input.file.pattern}")
     private String stationFileName;
+
+    public StationBatchStepDefinition(StepBuilderFactory stepBuilderFactoryImport,
+                                      SkippedRecordTracker skippedRecordTracker,
+                                      StationService stationService) {
+        this.stepBuilderFactoryImport = stepBuilderFactoryImport;
+        this.skippedRecordTracker = skippedRecordTracker;
+        this.stationService = stationService;
+    }
 
     @Bean
     @StepScope
@@ -57,7 +63,7 @@ public class StationBatchStepDefinition {
     @Bean
     @StepScope
     public StationDBWriter stationWriter() {
-        return new StationDBWriter();
+        return new StationDBWriter(stationService);
     }
 
     public FixedLengthTokenizer stationTokenizer() {

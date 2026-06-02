@@ -6,7 +6,6 @@ import ch.studer.germanclimatedataanalyser.model.database.StationWeatherPerYear;
 import ch.studer.germanclimatedataanalyser.model.dto.helper.GpsPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +21,11 @@ public class ClimateServiceImpl implements ClimateService {
     @Value("#{new Integer('${climate.calculation.period.year}')}")
     int period;
 
+    private final StationClimateDAO stationClimateDAO;
 
-    @SuppressWarnings("SpringJavaAutowiredMembersInspection")
-    @Autowired
-    StationClimateDAO stationClimateDAO;
+    public ClimateServiceImpl(StationClimateDAO stationClimateDAO) {
+        this.stationClimateDAO = stationClimateDAO;
+    }
 
 
     private static final Logger LOG = LoggerFactory.getLogger(ClimateServiceImpl.class);

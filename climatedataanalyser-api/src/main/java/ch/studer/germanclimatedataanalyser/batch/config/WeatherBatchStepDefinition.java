@@ -4,11 +4,11 @@ import ch.studer.germanclimatedataanalyser.batch.processor.WeatherProcessor;
 import ch.studer.germanclimatedataanalyser.batch.reader.MonthReader;
 import ch.studer.germanclimatedataanalyser.batch.writer.WeatherWriter;
 import ch.studer.germanclimatedataanalyser.model.database.Month;
+import ch.studer.germanclimatedataanalyser.service.db.StationWeatherService;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,15 +16,20 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class WeatherBatchStepDefinition {
 
-    @Autowired
-    private JobBuilderFactory jobBuilderFactoryImport;
+    private final JobBuilderFactory jobBuilderFactoryImport;
+    private final StepBuilderFactory stepBuilderFactoryImport;
+    private final MonthReader monthReader;
+    private final StationWeatherService stationWeatherService;
 
-    @Autowired
-    private StepBuilderFactory stepBuilderFactoryImport;
-
-
-    @Autowired
-    private MonthReader monthReader;
+    public WeatherBatchStepDefinition(JobBuilderFactory jobBuilderFactoryImport,
+                                      StepBuilderFactory stepBuilderFactoryImport,
+                                      MonthReader monthReader,
+                                      StationWeatherService stationWeatherService) {
+        this.jobBuilderFactoryImport = jobBuilderFactoryImport;
+        this.stepBuilderFactoryImport = stepBuilderFactoryImport;
+        this.monthReader = monthReader;
+        this.stationWeatherService = stationWeatherService;
+    }
 
     @Bean
     @StepScope
@@ -35,7 +40,7 @@ public class WeatherBatchStepDefinition {
     @Bean
     @StepScope
     public WeatherWriter weatherWriter() {
-        return new WeatherWriter();
+        return new WeatherWriter(stationWeatherService);
     }
 
     @Bean("importWeatherRecords")

@@ -9,7 +9,6 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -24,20 +23,20 @@ import java.util.Map;
 @CrossOrigin
 public class DataBaseController {
 
-    @Autowired
-    JobLauncher jobLauncher;
+    private final JobLauncher jobLauncher;
+    private final DbLoadInformationService dbLoadInformationService;
+    private final Job job;
+    private final JdbcTemplate jdbcTemplate;
+    private final SkippedRecordTracker skippedRecordTracker;
 
-    @Autowired
-    DbLoadInformationService dbLoadInformationService;
-
-    @Autowired
-    Job job;
-
-    @Autowired
-    JdbcTemplate jdbcTemplate;
-
-    @Autowired
-    SkippedRecordTracker skippedRecordTracker;
+    public DataBaseController(JobLauncher jobLauncher, DbLoadInformationService dbLoadInformationService,
+                              Job job, JdbcTemplate jdbcTemplate, SkippedRecordTracker skippedRecordTracker) {
+        this.jobLauncher = jobLauncher;
+        this.dbLoadInformationService = dbLoadInformationService;
+        this.job = job;
+        this.jdbcTemplate = jdbcTemplate;
+        this.skippedRecordTracker = skippedRecordTracker;
+    }
 
     private static final Logger log = LoggerFactory.getLogger(DataBaseController.class);
 
