@@ -47,7 +47,7 @@ public class StationClimateImpl implements StationClimateDAO {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<StationClimate> getClimateForBundesland(String bundesland) {
         List<StationClimate> climateForBundesland;
 
@@ -64,7 +64,7 @@ public class StationClimateImpl implements StationClimateDAO {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<StationClimate> getClimateForGpsCoordinates(GpsPoint gps1, GpsPoint gps2) {
         List<StationClimate> climateForGpsCoordinates;
 
@@ -85,7 +85,7 @@ public class StationClimateImpl implements StationClimateDAO {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<StationClimate> getClimateForGpsCoordinatesFromYearOrderByYearAndStationId(GpsPoint gps1, GpsPoint gps2, String yearFrom) {
         List<StationClimate> climateForGpsCoordinates;
 
@@ -109,7 +109,7 @@ public class StationClimateImpl implements StationClimateDAO {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<StationClimate> getClimateForBundeslandFromYearOrderByYearAndStationId(String bundesland, String year) {
         List<StationClimate> climates;
 
@@ -128,6 +128,7 @@ public class StationClimateImpl implements StationClimateDAO {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public long count() {
 
 

@@ -24,37 +24,37 @@ public class StationServiceImpl implements StationService {
 
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Station getStation(int stationId) throws NotFoundException {
         return stationDAO.getStationsBy(stationId);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Station getStation(String stationName) throws NotFoundException {
         return stationDAO.getStationByName(stationName);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<Station> getAllStations() {
         return stationDAO.getAllStations();
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<String> getAllBundeslaender() throws NotFoundException {
         return stationDAO.getAllBundeslaenderOrderAsc();
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<Station> getStationsFromBundesland(String bundesland) {
         return stationDAO.getStationsFromBundesland(bundesland);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public boolean bundeslandExists(String bundesland) {
         boolean status = false;
 

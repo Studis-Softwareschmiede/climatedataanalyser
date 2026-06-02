@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.transaction.annotation.Transactional;
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @Configuration
@@ -47,7 +46,6 @@ public class AnalyzerBatchJobConfiguration {
         return new ClimateFtpDataDownloader();
     }
 
-    @Transactional
     @Bean
     public Step downloadFiles() {
         return stepBuilderFactoryImport.get("download")
@@ -61,7 +59,6 @@ public class AnalyzerBatchJobConfiguration {
         return new ClimateFtpDataUnziper();
     }
 
-    @Transactional
     @Bean
     public Step unzipFiles() {
         return stepBuilderFactoryImport.get("unzipFiles")
