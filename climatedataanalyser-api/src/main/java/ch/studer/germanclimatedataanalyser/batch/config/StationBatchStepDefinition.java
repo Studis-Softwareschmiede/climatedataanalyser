@@ -67,11 +67,18 @@ public class StationBatchStepDefinition {
                 new Range(39, 50),
                 new Range(51, 60),
                 new Range(61, 102),
-                new Range(103, 200)
+                // bundesLand: Range(103, 143) — Datei hat danach eine "Abgabe"-Spalte
+                // (typisch "Frei"), die wir bewusst NICHT mit-tokenizen. Vorher lief das
+                // Feld bis Position 200 und schluckte "Abgabe" mit ein → in der DB
+                // tauchten doppelte Bundeslandnamen wie "Bayern" und "Bayern   Frei"
+                // auf, weil String.trim() nur außen, nicht innen wirkt. 41 Zeichen
+                // reichen für "Mecklenburg-Vorpommern" (längster Name, 22 Zeichen) inkl.
+                // Trailing Whitespace bis vor "Abgabe".
+                new Range(103, 143)
         );
-        // DWD-Datei hat ~1001 Zeichen pro Zeile (massives Trailing-Whitespace nach Bundesland).
-        // Unsere Ranges definieren nur bis Position 200 — Spring-Batch wäre per default strict
-        // und würde IncorrectTokenCountException werfen. setStrict(false) toleriert
+        // DWD-Datei hat ~1001 Zeichen pro Zeile (massives Trailing-Whitespace nach Bundesland
+        // und die "Abgabe"-Spalte, die wir nicht brauchen). Spring-Batch wäre per default
+        // strict und würde IncorrectTokenCountException werfen. setStrict(false) toleriert
         // Trailing-Chars und behandelt fehlende nachfolgende Spalten als leer.
         tokenizer.setStrict(false);
         return tokenizer;
