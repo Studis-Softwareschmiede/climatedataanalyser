@@ -31,8 +31,8 @@ public class ClimateServiceImpl implements ClimateService {
     private static final Logger LOG = LoggerFactory.getLogger(ClimateServiceImpl.class);
 
 
+    // Kein DB-Zugriff — reine In-Memory-Berechnung auf der übergebenen Liste; bewusst ohne @Transactional.
     @Override
-    @Transactional
     public List<StationClimate> getClimateForStation(List<StationWeatherPerYear> stationWeatherPerYears) {
         List<StationClimate> stationClimates = new ArrayList<>();
 
@@ -102,7 +102,7 @@ public class ClimateServiceImpl implements ClimateService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<StationClimate> getClimateForBundesland(String bundesland) {
         return this.stationClimateDAO.getClimateForBundesland(bundesland);
     }
@@ -115,21 +115,21 @@ public class ClimateServiceImpl implements ClimateService {
 
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<StationClimate> getClimateForGpsCoordinatesFromYearOrderedByFromYearAndStations(GpsPoint gps1, GpsPoint gps2, String fromYear) {
         return this.stationClimateDAO.getClimateForGpsCoordinatesFromYearOrderByYearAndStationId(gps1, gps2, fromYear);
     }
 
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<StationClimate> getClimateForBundeslandFromYearOrderedByFromYearAndStations(String bundesland, String year) {
         return this.stationClimateDAO.getClimateForBundeslandFromYearOrderByYearAndStationId(bundesland, year);
     }
 
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<StationClimate> getClimateForGpsCoordinates(GpsPoint gps1, GpsPoint gps2) {
 
         return this.stationClimateDAO.getClimateForGpsCoordinates(gps1, gps2);
