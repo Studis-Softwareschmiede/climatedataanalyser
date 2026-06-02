@@ -20,7 +20,6 @@ import java.util.Map;
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
 @RestController
 @RequestMapping("/api/database")
-@CrossOrigin
 public class DataBaseController {
 
     private final JobLauncher jobLauncher;
