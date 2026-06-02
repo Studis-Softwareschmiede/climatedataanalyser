@@ -2,18 +2,16 @@ package ch.studer.germanclimatedataanalyser.controller;
 
 import ch.studer.germanclimatedataanalyser.model.dto.AppInfo.AppInfoDto;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.info.BuildProperties;
-import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Properties;
 
 @RestController
 @RequestMapping("/api/appInfo")
@@ -27,15 +25,19 @@ public class AppInfo {
     AppInfoDto appinfo() {
         AppInfoDto appInfoDto = new AppInfoDto();
         appInfoDto.setVersion(buildProperties.getVersion());
-        appInfoDto.setBuildTime(getDateFormatted(buildProperties.getTime().atZone(ZoneId.of("Europe/Paris"))));
+        // getTime() ist null, wenn keine build-info.properties vorliegt (z.B. IDE-Run ohne
+        // Maven-build-info → @ConditionalOnMissingBean-Fallback in der Application-Config
+        // setzt kein "time"-Property). Ohne diesen Guard → NPE → HTTP 500 auf /api/appInfo/.
+        Instant buildTime = buildProperties.getTime();
+        appInfoDto.setBuildTime(buildTime != null
+                ? getDateFormatted(buildTime.atZone(ZoneId.of("Europe/Paris")))
+                : "unknown");
 
         return appInfoDto;
     }
 
     private String getDateFormatted(ZonedDateTime buildtime) {
-        String formattedBuildTime;
         DateTimeFormatter format = DateTimeFormatter.ofPattern("yyyy-MM-dd:HH.mm");
-
         return buildtime.format(format);
     }
 
