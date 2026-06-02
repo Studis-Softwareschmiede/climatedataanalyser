@@ -31,12 +31,21 @@ public class DirectoryUtilityImpl {
 
     private static File getPath(String pathName) {
 
-        File path = null;
-        //test if path is available if not ! exit PGM
+        // Filesystem-Lookup statt classpath: das funktioniert auch in repackaged
+        // Spring-Boot WARs/JARs, wo ResourceUtils.getFile("classpath:...") nicht
+        // resolved werden kann (nested-JAR / ZIP-Resource hat keinen File-Pfad).
+        // Verzeichnis on-demand anlegen (idempotent, kein Effekt bei Existenz).
+        File path = new File(pathName);
         try {
-            path = ResourceUtils.getFile("classpath:" + pathName);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException("-------------------Downloadfolder :" + pathName + "- doesn't exists ! ------------ " + e);
+            if (!path.exists()) {
+                Files.createDirectories(path.toPath());
+                log.info("Created missing directory: {}", path.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("-------------------Downloadfolder :" + pathName + "- konnte nicht angelegt werden ! ------------ " + e);
+        }
+        if (!path.exists()) {
+            throw new RuntimeException("-------------------Downloadfolder :" + pathName + "- existiert nicht (auch nach createDirectories) ! ------------");
         }
         return path;
     }

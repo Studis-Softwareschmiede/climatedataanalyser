@@ -42,7 +42,9 @@ public class ClimateBatchStepDefinition {
     @Transactional
     @Bean("importClimateRecords")
     public Step importClimateRecords() {
-        return stepBuilderFactoryImport.get("importClimateRecords")
+        // Step-Name kebab-case wie die anderen 4 (import-{temperature,station,weather,climate}-records).
+        // Wird ins BATCH_STEP_EXECUTION geschrieben und vom GUI-Skeleton gematcht.
+        return stepBuilderFactoryImport.get("import-climate-records")
                 .<StationWeatherPerYear, StationWeatherPerYear>chunk(5000)
                 //.reader(temperatureFromDbReader())
                 .reader(weatherReader.getWeatherFromDbReader())

@@ -1,10 +1,13 @@
 package ch.studer.germanclimatedataanalyser.model.dto.db;
 
+import ch.studer.germanclimatedataanalyser.batch.listener.SkippedRecordTracker.SkippedRecord;
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbLoadRowMapper;
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbStatusEnum;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DbLoadResponseDto {
 
@@ -12,6 +15,8 @@ public class DbLoadResponseDto {
     private String lastLoad;
     private String status;
     private List<DbLoadStep> dbLoadSteps = new ArrayList<DbLoadStep>();
+    private Map<String, Integer> fileCounts = new HashMap<>();  // ftpData, unzipedFiles, inputFiles → counts
+    private List<SkippedRecord> skippedRecords = new ArrayList<>();  // Bericht: alle übersprungenen Records dieses Job-Runs
 
     public DbLoadResponseDto(List<DbLoadRowMapper.JobExecutionInformation> dbLoadInformation, DbStatusEnum dbStatus) {
         this.mapToDbLoadResponsDto(dbLoadInformation, dbStatus);
@@ -21,9 +26,18 @@ public class DbLoadResponseDto {
 
     public void mapToDbLoadResponsDto(List<DbLoadRowMapper.JobExecutionInformation> jobExecutionInformations, DbStatusEnum dbStatus) {
         this.isDbLoaded = dbStatus.name();
+
+        // Empty-State (frische DB, noch nie ein Job-Run): defensiv fallback (closes #28).
+        // Vorher: .get(0) auf leerer Liste → IndexOutOfBoundsException → HTTP 500 → Frontend stuck.
+        if (jobExecutionInformations == null || jobExecutionInformations.isEmpty()) {
+            this.lastLoad = null;
+            this.status = "NEVER_RUN";
+            // dbLoadSteps bleibt leer — Frontend zeigt Pipeline-Skeleton mit 'pending'.
+            return;
+        }
+
         this.lastLoad = jobExecutionInformations.get(0).endTime;
         this.status = jobExecutionInformations.get(0).status;
-
 
         for (DbLoadRowMapper.JobExecutionInformation jobExecutionInformation : jobExecutionInformations) {
             DbLoadStep dbLoadStep = new DbLoadStep(
@@ -33,10 +47,27 @@ public class DbLoadResponseDto {
                     , jobExecutionInformation.getReadCount()
                     , jobExecutionInformation.getWriteCount()
                     , jobExecutionInformation.getStepStatus()
+                    , jobExecutionInformation.getStepExitMessage()
             );
             dbLoadSteps.add(dbLoadStep);
 
         }
+    }
+
+    public Map<String, Integer> getFileCounts() {
+        return fileCounts;
+    }
+
+    public void setFileCounts(Map<String, Integer> fileCounts) {
+        this.fileCounts = fileCounts;
+    }
+
+    public List<SkippedRecord> getSkippedRecords() {
+        return skippedRecords;
+    }
+
+    public void setSkippedRecords(List<SkippedRecord> skippedRecords) {
+        this.skippedRecords = skippedRecords;
     }
 
     // TODO remove Code
