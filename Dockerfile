@@ -1,6 +1,6 @@
-# Multi-Stage Build: Spring-Boot 2.6.6 + Java 11 + WAR + embedded Angular (frontend-maven-plugin)
-# Build-Stage: Maven + JDK 11
-FROM maven:3.9-eclipse-temurin-11 AS build
+# Multi-Stage Build: Spring-Boot 2.6.6 + Java 17 + WAR + embedded Angular (frontend-maven-plugin)
+# Build-Stage: Maven + JDK 17
+FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /build
 
 # Copy full repo (ng-build and api-build share the same source tree)
@@ -10,8 +10,8 @@ COPY . .
 # which downloads node/npm itself (requires network access in CI — expected).
 RUN mvn -B -ntp -DskipTests -pl climatedataanalyser-api -am package
 
-# Runtime-Stage: slim JRE 11
-FROM eclipse-temurin:11-jre
+# Runtime-Stage: slim JRE 17
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 
 # Run as non-root user (useradd must come before COPY so --chown works)
