@@ -2,7 +2,6 @@ package ch.studer.germanclimatedataanalyser.controller;
 
 import ch.studer.germanclimatedataanalyser.model.dto.BoundingBoxDto;
 import ch.studer.germanclimatedataanalyser.model.dto.BoundingBoxDto.Coordinate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +16,11 @@ import java.util.Map;
 @CrossOrigin
 public class StationBBoxController {
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
+
+    public StationBBoxController(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     /**
      * GET /api/stations/bbox?bundesland={name}

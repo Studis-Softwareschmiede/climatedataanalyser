@@ -4,7 +4,6 @@ import ch.studer.germanclimatedataanalyser.model.database.Station;
 import javassist.NotFoundException;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityManager;
@@ -13,8 +12,11 @@ import java.util.List;
 @Repository
 public class StationDaoImpl implements StationDAO {
 
-    @Autowired
-    private EntityManager entityManager;
+    private final EntityManager entityManager;
+
+    public StationDaoImpl(EntityManager entityManager) {
+        this.entityManager = entityManager;
+    }
 
     private Session getSession() {
         return entityManager.unwrap(Session.class);

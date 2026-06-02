@@ -4,11 +4,12 @@ import ch.studer.germanclimatedataanalyser.batch.processor.ClimateProcessor;
 import ch.studer.germanclimatedataanalyser.batch.reader.WeatherReader;
 import ch.studer.germanclimatedataanalyser.batch.writer.ClimateWriter;
 import ch.studer.germanclimatedataanalyser.model.database.StationWeatherPerYear;
+import ch.studer.germanclimatedataanalyser.service.db.ClimateService;
+import ch.studer.germanclimatedataanalyser.service.db.StationWeatherService;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,15 +17,23 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ClimateBatchStepDefinition {
 
-    @Autowired
-    private JobBuilderFactory jobBuilderFactoryImport;
+    private final JobBuilderFactory jobBuilderFactoryImport;
+    private final StepBuilderFactory stepBuilderFactoryImport;
+    private final WeatherReader weatherReader;
+    private final ClimateService climateService;
+    private final StationWeatherService stationWeatherService;
 
-    @Autowired
-    private StepBuilderFactory stepBuilderFactoryImport;
-
-
-    @Autowired
-    private WeatherReader weatherReader;
+    public ClimateBatchStepDefinition(JobBuilderFactory jobBuilderFactoryImport,
+                                      StepBuilderFactory stepBuilderFactoryImport,
+                                      WeatherReader weatherReader,
+                                      ClimateService climateService,
+                                      StationWeatherService stationWeatherService) {
+        this.jobBuilderFactoryImport = jobBuilderFactoryImport;
+        this.stepBuilderFactoryImport = stepBuilderFactoryImport;
+        this.weatherReader = weatherReader;
+        this.climateService = climateService;
+        this.stationWeatherService = stationWeatherService;
+    }
 
     @Bean
     @StepScope
@@ -35,7 +44,7 @@ public class ClimateBatchStepDefinition {
     @Bean
     @StepScope
     public ClimateWriter climateWriter() {
-        return new ClimateWriter();
+        return new ClimateWriter(climateService, stationWeatherService);
     }
 
     @Bean("importClimateRecords")

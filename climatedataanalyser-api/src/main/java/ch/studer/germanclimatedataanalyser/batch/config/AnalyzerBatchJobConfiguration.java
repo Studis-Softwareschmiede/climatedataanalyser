@@ -9,7 +9,7 @@ import org.springframework.batch.core.configuration.annotation.EnableBatchProces
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -20,30 +20,36 @@ import org.springframework.context.annotation.Import;
 @Import({WeatherBatchStepDefinition.class, StationBatchStepDefinition.class})
 public class AnalyzerBatchJobConfiguration {
 
-    @Autowired
-    private JobBuilderFactory jobBuilderFactoryImport;
+    private final JobBuilderFactory jobBuilderFactoryImport;
+    private final StepBuilderFactory stepBuilderFactoryImport;
+    private final ClimateBatchStepDefinition climateBatchConfiguration;
+    private final WeatherBatchStepDefinition weatherBatchConfiguration;
+    private final StationBatchStepDefinition stationBatchConfiguration;
+    private final TemperatureForMonthBatchConfiguration temperatureForMonthBatchConfiguration;
+    private final ApplicationContext applicationContext;
 
-    @Autowired
-    private StepBuilderFactory stepBuilderFactoryImport;
-
-    @Autowired
-    private ClimateBatchStepDefinition climateBatchConfiguration;
-
-    @Autowired
-    private WeatherBatchStepDefinition weatherBatchConfiguration;
-
-    @Autowired
-    private StationBatchStepDefinition stationBatchConfiguration;
-
-    @Autowired
-    private TemperatureForMonthBatchConfiguration temperatureForMonthBatchConfiguration;
+    public AnalyzerBatchJobConfiguration(JobBuilderFactory jobBuilderFactoryImport,
+                                         StepBuilderFactory stepBuilderFactoryImport,
+                                         ClimateBatchStepDefinition climateBatchConfiguration,
+                                         WeatherBatchStepDefinition weatherBatchConfiguration,
+                                         StationBatchStepDefinition stationBatchConfiguration,
+                                         TemperatureForMonthBatchConfiguration temperatureForMonthBatchConfiguration,
+                                         ApplicationContext applicationContext) {
+        this.jobBuilderFactoryImport = jobBuilderFactoryImport;
+        this.stepBuilderFactoryImport = stepBuilderFactoryImport;
+        this.climateBatchConfiguration = climateBatchConfiguration;
+        this.weatherBatchConfiguration = weatherBatchConfiguration;
+        this.stationBatchConfiguration = stationBatchConfiguration;
+        this.temperatureForMonthBatchConfiguration = temperatureForMonthBatchConfiguration;
+        this.applicationContext = applicationContext;
+    }
 
     // # First Tasklet : Download the Files in specific Folder
 
     @Bean
     public ClimateFtpDataDownloader download() {
 
-        return new ClimateFtpDataDownloader();
+        return new ClimateFtpDataDownloader(applicationContext);
     }
 
     @Bean

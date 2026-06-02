@@ -5,7 +5,6 @@ import ch.studer.germanclimatedataanalyser.model.dto.ClimateAnalyserRequestDto;
 import ch.studer.germanclimatedataanalyser.model.dto.ClimateAnalyserResponseDto;
 import ch.studer.germanclimatedataanalyser.service.db.StationService;
 import ch.studer.germanclimatedataanalyser.service.ui.analytics.ClimateAnalyserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,11 +20,13 @@ This RestController will be replaced by the new controllers
 @CrossOrigin
 public class AnalyticsController {
 
-    @Autowired
-    StationService stationService;
+    private final StationService stationService;
+    private final ClimateAnalyserService climateAnalyserService;
 
-    @Autowired
-    ClimateAnalyserService climateAnalyserService;
+    public AnalyticsController(StationService stationService, ClimateAnalyserService climateAnalyserService) {
+        this.stationService = stationService;
+        this.climateAnalyserService = climateAnalyserService;
+    }
 
     @GetMapping("/")
     public List<String> handle() throws Exception {

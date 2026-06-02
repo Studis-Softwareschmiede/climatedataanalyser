@@ -16,7 +16,7 @@ import java.util.List;
 class ClimateServiceImplTest {
 
 
-    ClimateServiceImpl climateService = new ClimateServiceImpl();
+    ClimateServiceImpl climateService = new ClimateServiceImpl(null);
 
     private static final Logger LOG = LoggerFactory.getLogger(ClimateServiceImplTest.class);
 

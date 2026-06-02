@@ -1,22 +1,22 @@
 package ch.studer.germanclimatedataanalyser.dao;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DataAccess {
 
-    @Autowired
-    MonthDAO monthDAO;
+    private final MonthDAO monthDAO;
+    private final StationDAO stationDAO;
+    private final StationClimateDAO stationClimateDAO;
+    private final StationWeatherDAO stationWeatherDAO;
 
-    @Autowired
-    StationDAO stationDAO;
-
-    @Autowired
-    StationClimateDAO stationClimateDAO;
-
-    @Autowired
-    StationWeatherDAO stationWeatherDAO;
+    public DataAccess(MonthDAO monthDAO, StationDAO stationDAO,
+                      StationClimateDAO stationClimateDAO, StationWeatherDAO stationWeatherDAO) {
+        this.monthDAO = monthDAO;
+        this.stationDAO = stationDAO;
+        this.stationClimateDAO = stationClimateDAO;
+        this.stationWeatherDAO = stationWeatherDAO;
+    }
 
 
     public MonthDAO getMonthDAO() {

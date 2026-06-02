@@ -7,7 +7,6 @@ import ch.studer.germanclimatedataanalyser.service.db.StationWeatherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.ArrayList;
@@ -15,14 +14,16 @@ import java.util.List;
 
 public class ClimateWriter implements ItemWriter<StationWeatherPerYear> {
 
-    @Autowired
-    ClimateService climateService;
-
-    @Autowired
-    StationWeatherService stationWeatherService;
+    private final ClimateService climateService;
+    private final StationWeatherService stationWeatherService;
 
     @Value("#{new Integer('${climate.calculation.period.year}')}")
     int period;
+
+    public ClimateWriter(ClimateService climateService, StationWeatherService stationWeatherService) {
+        this.climateService = climateService;
+        this.stationWeatherService = stationWeatherService;
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(ClimateWriter.class);
 

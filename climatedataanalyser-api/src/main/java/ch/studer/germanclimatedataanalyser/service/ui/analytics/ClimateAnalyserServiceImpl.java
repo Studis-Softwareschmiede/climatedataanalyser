@@ -7,19 +7,19 @@ import ch.studer.germanclimatedataanalyser.model.dto.ClimateAnalyserResponseDto;
 import ch.studer.germanclimatedataanalyser.model.dto.TemperatureForMonthDto;
 import ch.studer.germanclimatedataanalyser.service.db.ClimateService;
 import ch.studer.germanclimatedataanalyser.service.db.StationService;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@SuppressWarnings("SpringJavaAutowiredMembersInspection")
 public class ClimateAnalyserServiceImpl implements ClimateAnalyserService {
-    @Autowired
-    ClimateService climateService;
 
+    private final ClimateService climateService;
+    private final StationService stationService;
 
-    @Autowired
-    StationService stationService;
+    public ClimateAnalyserServiceImpl(ClimateService climateService, StationService stationService) {
+        this.climateService = climateService;
+        this.stationService = stationService;
+    }
 
     @Override
     public ClimateAnalyserResponseDto getClimateAnalyticsByClimateAnalyserRequest(ClimateAnalyserRequestDto climateAnalyserRequestDto) {

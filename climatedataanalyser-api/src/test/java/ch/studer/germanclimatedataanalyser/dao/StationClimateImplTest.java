@@ -32,7 +32,7 @@ class StationClimateImplTest {
         GpsPoint gpsPoint2 = new GpsPoint(10d, 20d);
         String fromYear = "1961";
 
-        List<StationClimate> stationClimateList = dataAccess.stationClimateDAO.getClimateForGpsCoordinatesFromYearOrderByYearAndStationId(gpsPoint1, gpsPoint2, fromYear);
+        List<StationClimate> stationClimateList = dataAccess.getStationClimateDAO().getClimateForGpsCoordinatesFromYearOrderByYearAndStationId(gpsPoint1, gpsPoint2, fromYear);
         int index = 1;
         for (StationClimate stationClimate : stationClimateList) {
 
