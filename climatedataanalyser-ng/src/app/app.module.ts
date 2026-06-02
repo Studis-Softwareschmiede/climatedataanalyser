@@ -11,6 +11,8 @@ import {HttpClientModule} from '@angular/common/http';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {ClimatesComponent} from './climates/climates.component';
 import {WolfgangComponent} from './wolfgang/wolfgang.component';
+import {LeafletModule} from '@asymmetrik/ngx-leaflet';
+import {LeafletDrawModule} from '@asymmetrik/ngx-leaflet-draw';
 
 @NgModule({
   declarations: [
@@ -27,7 +29,9 @@ import {WolfgangComponent} from './wolfgang/wolfgang.component';
     AppRoutingModule,
     HttpClientModule,
     FormsModule,
-    ReactiveFormsModule
+    ReactiveFormsModule,
+    LeafletModule,
+    LeafletDrawModule
   ],
   providers: [],
   bootstrap: [AppComponent]

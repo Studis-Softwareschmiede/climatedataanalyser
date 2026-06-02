@@ -13,7 +13,7 @@ public class DbLoadInformationServiceImpl implements DbLoadInformationService {
     DbLoadInformationeDAO dbLoadInformationeDAO;
 
     @Autowired
-    DbStatusInformationServiceImpl dbStatusInformationService;
+    DbStatusInformationService dbStatusInformationService;
 
     private static final Logger log = LoggerFactory.getLogger(DbLoadInformationServiceImpl.class);
 

@@ -19,6 +19,12 @@ public class DbLoadRowMapper implements RowMapper<DbLoadRowMapper.JobExecutionIn
         jobExecutionInformation.setReadCount(rs.getString("READ_COUNT"));
         jobExecutionInformation.setWriteCount(rs.getString("WRITE_COUNT"));
         jobExecutionInformation.setStepStatus(rs.getString("STEP_STATUS"));
+        // Optional: STEP_EXIT_MESSAGE — Spalte ist seit Erweiterung des SQL präsent
+        try {
+            jobExecutionInformation.setStepExitMessage(rs.getString("STEP_EXIT_MESSAGE"));
+        } catch (SQLException ignored) {
+            // Spalte nicht im ResultSet → ignorieren (Backwards-Compat)
+        }
 
         return jobExecutionInformation;
     }
@@ -33,6 +39,15 @@ public class DbLoadRowMapper implements RowMapper<DbLoadRowMapper.JobExecutionIn
         public String readCount;
         public String writeCount;
         public String stepStatus;
+        public String stepExitMessage;
+
+        public String getStepExitMessage() {
+            return stepExitMessage;
+        }
+
+        public void setStepExitMessage(String stepExitMessage) {
+            this.stepExitMessage = stepExitMessage;
+        }
 
         public String getEndTime() {
             return endTime;

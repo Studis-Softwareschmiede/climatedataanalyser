@@ -1,5 +1,6 @@
 package ch.studer.germanclimatedataanalyser.batch.config;
 
+import ch.studer.germanclimatedataanalyser.batch.listener.SkippedRecordTracker;
 import ch.studer.germanclimatedataanalyser.batch.listener.StepProcessorListener;
 import ch.studer.germanclimatedataanalyser.batch.listener.StepWriterListener;
 import ch.studer.germanclimatedataanalyser.batch.processor.TemperatureForMonthProcessor;
@@ -15,8 +16,10 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.MultiResourceItemReader;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.batch.item.file.FlatFileParseException;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
+import org.springframework.batch.item.file.transform.IncorrectTokenCountException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +34,9 @@ public class TemperatureForMonthBatchConfiguration {
 
     @Autowired
     private StepBuilderFactory stepBuilderFactoryImport;
+
+    @Autowired
+    private SkippedRecordTracker skippedRecordTracker;
 
     @Value("${climate.path.temperature.input.file.pattern}")
     private String inputFilePattern;
@@ -125,8 +131,43 @@ public class TemperatureForMonthBatchConfiguration {
                 .processor(temperaturProcessor())
                 .listener(new StepWriterListener())
                 .writer(monthWriter())
+                // Fault-tolerant read: max 100 korrupte Zeilen pro Run werden geskipped + im
+                // SkippedRecordTracker erfasst (für Frontend-Bericht). Bei >100 → hard fail.
+                // Begründung: stilles Skip wäre Lüge gegenüber dem Daten-User. Jeder Skip wird
+                // mit file/line/input/message getrackt und im API-Response ausgegeben.
+                .faultTolerant()
+                .skip(FlatFileParseException.class)
+                .skip(IncorrectTokenCountException.class)
+                .skipLimit(100)
+                .listener(new org.springframework.batch.core.SkipListener<MonthFile, Month>() {
+                    @Override
+                    public void onSkipInRead(Throwable t) {
+                        // Wir können hier nicht direkt an die jobExecutionId — der Tracker
+                        // wird vom SkipReportingJobListener (Job-Level) aufgeräumt. Hier nur erfassen.
+                        skippedRecordTracker.add(currentJobExecutionId(), "import-temperature-records", t);
+                    }
+                    @Override public void onSkipInWrite(Month item, Throwable t) {}
+                    @Override public void onSkipInProcess(MonthFile item, Throwable t) {}
+                })
                 .build()
                 ;
+    }
+
+    /**
+     * Holt die aktuelle JobExecutionId aus dem Spring-Batch StepSynchronizationManager.
+     * Wir laufen im StepScope-Kontext (siehe @StepScope auf Reader-Beans),
+     * StepSynchronizationManager liefert den aktuellen StepContext.
+     */
+    private static Long currentJobExecutionId() {
+        try {
+            org.springframework.batch.core.scope.context.StepContext ctx =
+                    org.springframework.batch.core.scope.context.StepSynchronizationManager.getContext();
+            if (ctx != null && ctx.getStepExecution() != null
+                    && ctx.getStepExecution().getJobExecution() != null) {
+                return ctx.getStepExecution().getJobExecution().getId();
+            }
+        } catch (Exception ignored) {}
+        return -1L;  // Fallback — Tracker behandelt -1 als "unknown job"
     }
 
 

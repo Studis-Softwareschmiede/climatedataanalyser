@@ -8,6 +8,15 @@ import {ClimateResponseDto} from '../climates/model/ClimateResponseDto';
 import {environment} from '../../environments/environment';
 import {AppInfoDto} from '../navigation/model/AppInfoDto';
 
+/**
+ * Response shape from GET /api/stations/bbox?bundesland={name}.
+ * Mirrors the backend BoundingBoxDto.Coordinate inner class.
+ */
+export interface BoundingBoxDto {
+  nw: { latitude: number; longitude: number };
+  se: { latitude: number; longitude: number };
+}
+
 
 @Injectable({
   providedIn: 'root'
@@ -15,12 +24,13 @@ import {AppInfoDto} from '../navigation/model/AppInfoDto';
 export class ApiService {
 
   private BASE_URL = environment.BASE_URL + '/api';
-  private LOAD_DATABASE_URL = `${this.BASE_URL}\\database\\batchImportStart\\`;
-  private LOAD_DATABASE_DATA_URL = `${this.BASE_URL}\\database\\`;
-  private APPINFO_URL = `${this.BASE_URL}\\appInfo\\`;
-  private ANALYTICS_INIT_URL = `${this.BASE_URL}\\analytics\\`;
-  private ANALYTICS_BY_CLIMATE_ANALYSER_REQUEST_DTO_URL = `${this.BASE_URL}\\analytics\\request\\`;
-  private CLIMATE_RECORDS = `${this.BASE_URL}\\climateRecords\\`;
+  private LOAD_DATABASE_URL = `${this.BASE_URL}/database/batchImportStart/`;
+  private LOAD_DATABASE_DATA_URL = `${this.BASE_URL}/database/`;
+  private APPINFO_URL = `${this.BASE_URL}/appInfo/`;
+  private ANALYTICS_INIT_URL = `${this.BASE_URL}/analytics/`;
+  private ANALYTICS_BY_CLIMATE_ANALYSER_REQUEST_DTO_URL = `${this.BASE_URL}/analytics/request/`;
+  private CLIMATE_RECORDS = `${this.BASE_URL}/climateRecords/`;
+  private STATIONS_BBOX_URL = `${this.BASE_URL}/stations/bbox`;
   public dbIsLoaded = false;
 
   constructor(private http: HttpClient) {
@@ -30,6 +40,14 @@ export class ApiService {
     let myQueryparams = new HttpParams();
     myQueryparams = myQueryparams.append('withFTP', withFTP);
     return this.http.get<string>(this.LOAD_DATABASE_URL, {params: myQueryparams});
+  }
+
+  /**
+   * POST /api/database/clear → truncated alle App- und BATCH_*-Tabellen.
+   * Vorbereitung für sauberen Re-Load (sonst macht Spring-Batch append, nicht replace).
+   */
+  clearDatabase(): Observable<any> {
+    return this.http.post(`${this.BASE_URL}/database/clear`, {});
   }
 
   appInfo(): Observable<HttpEvent<AppInfoDto>> {
@@ -75,6 +93,11 @@ export class ApiService {
       }
     );
     return this.http.request<ClimateAnalyserResponseDto>(req);
+  }
+
+  getBoundingBoxByBundesland(bundesland: string): Observable<BoundingBoxDto> {
+    const params = new HttpParams().set('bundesland', bundesland);
+    return this.http.get<BoundingBoxDto>(this.STATIONS_BBOX_URL, {params});
   }
 
   public getClimateRecords(bundesland: string,
