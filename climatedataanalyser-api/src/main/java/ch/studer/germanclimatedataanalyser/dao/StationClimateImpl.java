@@ -38,13 +38,22 @@ public class StationClimateImpl implements StationClimateDAO {
 
     }
 
+    private static final int BATCH_SIZE = 50;
+
     @Override
     @Transactional
     public void saveAll(List<StationClimate> stationClimates) {
 
-        for (StationClimate stationClimate : stationClimates) {
-            save(stationClimate);
+        Session session = getSession();
+        for (int i = 0; i < stationClimates.size(); i++) {
+            session.saveOrUpdate(stationClimates.get(i));
+            if ((i + 1) % BATCH_SIZE == 0) {
+                session.flush();
+                session.clear();
+            }
         }
+        // flush remaining elements (<50) that were not covered by the in-loop flush/clear
+        session.flush();
 
     }
 
