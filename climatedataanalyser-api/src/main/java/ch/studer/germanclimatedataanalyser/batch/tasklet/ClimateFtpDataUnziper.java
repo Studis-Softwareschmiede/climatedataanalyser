@@ -87,7 +87,8 @@ public class ClimateFtpDataUnziper implements Tasklet, InitializingBean {
                 Files.copy(inputFile.toPath(), outputFile.toPath());
                 // log.warn("Unziped File  :" + outputFile.toPath());
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("Failed to copy file {} to output directory {}: {}",
+                        f.getName(), outputDirectory.getPath(), e.getMessage(), e);
             }
     }
 
