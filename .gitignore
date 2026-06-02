@@ -37,3 +37,7 @@ build/
 ### FTP / Unzip and Input Test Files ###
 /dataFiles/
 /climatedataanalyser-api/TestDirectory/
+
+# lokale Secret-Env (nur .example wird committet)
+.env.db
+.env

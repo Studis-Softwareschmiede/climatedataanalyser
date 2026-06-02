@@ -49,5 +49,19 @@ services:
       - ./db_scripts:/db_scripts:ro
     entrypoint: ["/db_scripts/run-migrations.sh"]
 
+  app:
+    image: ghcr.io/studis-softwareschmiede/climatedataanalyser:latest
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.db
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/CLIMATE?zeroDateTimeBehavior=CONVERT_TO_NULL&serverTimezone=Europe/Berlin"
+    ports:
+      - "${APP_PORT:-8092}:8092"
+
 volumes:
   db_data: {}
