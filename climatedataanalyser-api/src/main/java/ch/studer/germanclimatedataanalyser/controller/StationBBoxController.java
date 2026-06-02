@@ -13,7 +13,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/stations")
-@CrossOrigin
 public class StationBBoxController {
 
     private final JdbcTemplate jdbcTemplate;
