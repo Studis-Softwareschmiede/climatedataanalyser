@@ -1,9 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 
 @Component({
   selector: 'app-wolfgang',
   templateUrl: './wolfgang.component.html',
-  styleUrls: ['./wolfgang.component.css']
+  styleUrls: ['./wolfgang.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WolfgangComponent implements OnInit {
 
