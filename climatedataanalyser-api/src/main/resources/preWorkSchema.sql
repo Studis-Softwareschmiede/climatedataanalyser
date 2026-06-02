@@ -1,4 +1,9 @@
 -- THIS SCRIPT DROP&CREATES USERS and DATABASES
+--
+-- ⚠️ Manuelles DBA-Bootstrap-Referenzskript — NICHT vom Code/Compose verwendet.
+--    Echte Credentials NIE hier hartkodieren: Platzhalter <SET-VIA-SECRET-STORE>
+--    durch Werte aus dem Secret-Store (.env.db / sops / Vault) ersetzen, bevor das
+--    Skript manuell ausgeführt wird. Der Compose-Pfad legt User/DB via .env.db an.
 
 DROP user if exists 'climateRUN'@'localhost';
 DROP user if exists 'climateDBA'@'localhost';
@@ -11,7 +16,7 @@ CREATE database if not exists CLIMATE;
 
 -- Create the Run user
 -- this is the User used in the application
-CREATE USER 'climateRUN'@'localhost' IDENTIFIED BY '***REMOVED-CREDENTIAL***'
+CREATE USER 'climateRUN'@'localhost' IDENTIFIED BY '<SET-VIA-SECRET-STORE>'
     WITH MAX_QUERIES_PER_HOUR 0
         MAX_UPDATES_PER_HOUR 0
         MAX_CONNECTIONS_PER_HOUR 0
@@ -20,8 +25,7 @@ CREATE USER 'climateRUN'@'localhost' IDENTIFIED BY '***REMOVED-CREDENTIAL***'
 GRANT ALL privileges ON CLIMATE.* TO 'climateRUN'@'localhost';
 
 -- This User is used to monitor the DB actions
--- CREATE USER 'climateDBA'@'localhost' IDENTIFIED BY 'al349vbn*mvc(.cu"+u'
-CREATE USER 'climateDBA'@'localhost' IDENTIFIED BY 'climateDBA$4711'
+CREATE USER 'climateDBA'@'localhost' IDENTIFIED BY '<SET-VIA-SECRET-STORE>'
     WITH MAX_QUERIES_PER_HOUR 0
         MAX_UPDATES_PER_HOUR 0
         MAX_CONNECTIONS_PER_HOUR 0
