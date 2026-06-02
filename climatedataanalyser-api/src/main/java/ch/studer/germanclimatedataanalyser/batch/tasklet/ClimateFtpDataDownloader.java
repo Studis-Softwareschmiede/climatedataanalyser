@@ -64,7 +64,7 @@ public class ClimateFtpDataDownloader implements Tasklet {
             ftpClient.login(ftpUser, ftpPwd);
 
         } catch (Exception e) {
-            throw new RuntimeException("Connection to FTP Server Failed : STOP the Program : " + e);
+            throw new RuntimeException("Connection to FTP Server Failed : STOP the Program", e);
         }
         return ftpClient;
     }
@@ -81,15 +81,12 @@ public class ClimateFtpDataDownloader implements Tasklet {
             //TODO Work with a toggle switch to switch between test and production mode
             //     for (int i = 0; i < 2; i++) {
             // FTPFile ftpFile = ftpFiles[i];
-            FileOutputStream out = new FileOutputStream(directory.getAbsoluteFile() + "/" + ftpFile.getName());
-            try {
+            try (FileOutputStream out = new FileOutputStream(directory.getAbsoluteFile() + "/" + ftpFile.getName())) {
                 ftpConnection.retrieveFile(ftpFile.getName(), out);
-                log.debug("File {}", ftpFile, " downloaded !");
+                log.debug("File {} downloaded!", ftpFile.getName());
             } catch (Exception e) {
-
-                throw new RuntimeException("Error in Download File : " + e);
+                throw new RuntimeException("Error in Download File", e);
             }
-            out.close();
 
             if (ftpConnection.getReplyCode() == 550) {
                 throw new RuntimeException("FTP Download Error : " + ftpConnection.getReplyString());
@@ -112,10 +109,10 @@ public class ClimateFtpDataDownloader implements Tasklet {
             ftpFiles = ftpConnection.listFiles();
 
         } catch (Exception e) {
-            throw new RuntimeException("Runtime Exeption in list FTP Files : " + e.getMessage());
+            throw new RuntimeException("Runtime Exception in list FTP Files", e);
 
         } finally {
-            System.out.println("End of the List arrived !");
+            log.debug("FTP listFiles() completed.");
         }
 
         return ftpFiles;
@@ -141,7 +138,7 @@ public class ClimateFtpDataDownloader implements Tasklet {
                 ftpConnection.logout();
                 ftpConnection.disconnect();
             } catch (Exception e) {
-                throw new RuntimeException("Error Connecting FTP Server : " + e);
+                throw new RuntimeException("Error Connecting FTP Server", e);
             }
             log.info("#################   Ende Download from the Weather Server   ############");
         } else {

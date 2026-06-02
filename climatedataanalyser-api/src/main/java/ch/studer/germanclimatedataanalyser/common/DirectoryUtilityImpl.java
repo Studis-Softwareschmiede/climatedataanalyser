@@ -60,7 +60,7 @@ public class DirectoryUtilityImpl {
             }
             Files.createDirectory(directory.toPath());
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to create or empty directory: {}/{}", pathName, folderName, e);
         }
 
         return directory;
