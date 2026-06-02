@@ -101,27 +101,55 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
       this.drawnItems.clearLayers();
       const layer = event.layer;
       this.drawnItems.addLayer(layer);
+      // Beim Zeichnen via Toolbar: bewusst auch das Dropdown leeren — der User
+      // hat ja eine neue Region per Hand definiert, das alte Bundesland-Tag
+      // gehört nicht mehr dazu (Convenience-Init ist überholt).
+      this.selectedBundesland = '';
       this.updateCoordsFromLayer(layer);
     });
 
-    // AC-F14: edit support
+    // AC-F14: edit support — nur das (eine) Rectangle aktualisieren,
+    // niemals via eachLayer auch Edit-Marker (das ist die degenerate-Box-Falle).
     this.map.on('draw:edited', (event: any) => {
+      let edited: L.Rectangle | null = null;
       event.layers.eachLayer((layer: any) => {
-        this.updateCoordsFromLayer(layer);
+        if (layer instanceof L.Rectangle && !edited) {
+          edited = layer;
+        }
       });
+      if (edited) {
+        this.updateCoordsFromLayer(edited);
+      }
     });
 
     this.map.on('draw:deleted', () => {
-      this.nwDisplay = null;
-      this.seDisplay = null;
-      this.angForm.patchValue({gps1lat: '', gps1long: '', gps2lat: '', gps2long: ''});
+      this.clearSelection();
     });
   }
 
+  private clearSelection() {
+    this.nwDisplay = null;
+    this.seDisplay = null;
+    this.angForm.patchValue({gps1lat: '', gps1long: '', gps2lat: '', gps2long: ''});
+  }
+
   private updateCoordsFromLayer(layer: L.Rectangle) {
-    const bounds = (layer as L.Rectangle).getBounds();
+    // Defensive: only act on actual Rectangle layers (instanceof guard against
+    // Leaflet.draw's edit-markers, which would otherwise produce a degenerate
+    // nw == se "box" when accidentally captured).
+    if (!(layer instanceof L.Rectangle)) {
+      return;
+    }
+    const bounds = layer.getBounds();
     const nw = bounds.getNorthWest();
     const se = bounds.getSouthEast();
+
+    // Defensive: warn (and skip form update) when the rectangle has zero area —
+    // typically a single-click on the map without dragging.
+    if (nw.lat === se.lat && nw.lng === se.lng) {
+      console.warn('analytics: degenerate rectangle (NW == SE) — ignored. Bitte ziehen statt klicken.');
+      return;
+    }
 
     // AC-F8: fill form controls programmatically
     this.angForm.patchValue({
@@ -136,23 +164,36 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     this.seDisplay = `SE: ${se.lat.toFixed(6)}, ${se.lng.toFixed(6)}`;
   }
 
-  // AC-F12: submit enabled only when bbox or Bundesland is set
+  // AC-F12: submit enabled only when a valid (non-degenerate) box OR a Bundesland is set.
   get hasSelection(): boolean {
     const v = this.angForm.value;
-    const hasBox = v.gps1lat !== '' && v.gps1long !== '' && v.gps2lat !== '' && v.gps2long !== '';
-    const hasBundesland = this.selectedBundesland && this.selectedBundesland !== '';
+    const hasBox =
+      v.gps1lat !== '' && v.gps1long !== '' && v.gps2lat !== '' && v.gps2long !== '' &&
+      (parseFloat(v.gps1lat) !== parseFloat(v.gps2lat) || parseFloat(v.gps1long) !== parseFloat(v.gps2long));
+    const hasBundesland = !!(this.selectedBundesland && this.selectedBundesland !== '');
     return hasBox || hasBundesland;
   }
 
-  // AC-F13: submit — unchanged backend call
+  // AC-F13: submit. Prioritisierung:
+  // 1) Wenn ein Rechteck auf der Karte existiert → GPS senden (Bundesland leer).
+  //    Das Rechteck ist die Wahrheit, auch wenn vorher per Bundesland-Dropdown vorgezeichnet.
+  // 2) Wenn KEIN Rechteck, aber Bundesland gewählt → nur Bundesland senden (Server-side fallback).
+  // Damit kollidieren Dropdown + Map nicht mehr (vorher: bundesland='' UND GPS=0,0 → ErrorMsg).
   onClickSubmit() {
     const v = this.angForm.value;
+    const hasBoxNumeric =
+      v.gps1lat !== '' && v.gps1long !== '' && v.gps2lat !== '' && v.gps2long !== '';
+
+    const bundeslandParam = hasBoxNumeric ? '' : (this.selectedBundesland || '');
+    const gps1 = hasBoxNumeric
+      ? new GpsPoint(parseFloat(v.gps1long), parseFloat(v.gps1lat))
+      : new GpsPoint(0, 0);
+    const gps2 = hasBoxNumeric
+      ? new GpsPoint(parseFloat(v.gps2long), parseFloat(v.gps2lat))
+      : new GpsPoint(0, 0);
+
     this.apiService.getAnalyticsByRequest(
-      '',
-      new GpsPoint(parseFloat(v.gps1long), parseFloat(v.gps1lat)),
-      new GpsPoint(parseFloat(v.gps2long), parseFloat(v.gps2lat)),
-      v.yearO,
-      v.yearC
+      bundeslandParam, gps1, gps2, v.yearO, v.yearC
     )
       .pipe(takeUntil(this.destroy$))
       .subscribe(
@@ -162,7 +203,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
           }
         },
         () => {
-          alert('An error occurred while getting analytics by GPS coordinates');
+          alert('An error occurred while getting analytics');
         }
       );
   }
