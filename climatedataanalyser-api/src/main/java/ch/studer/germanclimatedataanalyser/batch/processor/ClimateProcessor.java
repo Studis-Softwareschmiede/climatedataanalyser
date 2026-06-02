@@ -1,7 +1,7 @@
 package ch.studer.germanclimatedataanalyser.batch.processor;
 
 import ch.studer.germanclimatedataanalyser.model.database.StationWeatherPerYear;
-import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.infrastructure.item.ItemProcessor;
 
 public class ClimateProcessor implements ItemProcessor<StationWeatherPerYear, StationWeatherPerYear> {
     @Override

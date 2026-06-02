@@ -11,17 +11,18 @@ import ch.studer.germanclimatedataanalyser.model.file.MonthFile;
 import ch.studer.germanclimatedataanalyser.service.db.MonthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.listener.SkipListener;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.Step;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.item.file.FlatFileItemReader;
-import org.springframework.batch.item.file.MultiResourceItemReader;
-import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
-import org.springframework.batch.item.file.FlatFileParseException;
-import org.springframework.batch.item.file.mapping.DefaultLineMapper;
-import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
-import org.springframework.batch.item.file.transform.IncorrectTokenCountException;
+import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
+import org.springframework.batch.infrastructure.item.file.MultiResourceItemReader;
+import org.springframework.batch.infrastructure.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.batch.infrastructure.item.file.FlatFileParseException;
+import org.springframework.batch.infrastructure.item.file.mapping.DefaultLineMapper;
+import org.springframework.batch.infrastructure.item.file.transform.DelimitedLineTokenizer;
+import org.springframework.batch.infrastructure.item.file.transform.IncorrectTokenCountException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -141,7 +142,7 @@ public class TemperatureForMonthBatchConfiguration {
                 .skip(FlatFileParseException.class)
                 .skip(IncorrectTokenCountException.class)
                 .skipLimit(100)
-                .listener(new org.springframework.batch.core.SkipListener<MonthFile, Month>() {
+                .listener(new SkipListener<MonthFile, Month>() {
                     @Override
                     public void onSkipInRead(Throwable t) {
                         // Wir können hier nicht direkt an die jobExecutionId — der Tracker

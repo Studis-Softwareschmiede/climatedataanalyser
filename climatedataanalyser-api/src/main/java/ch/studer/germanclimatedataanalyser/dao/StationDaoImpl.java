@@ -28,7 +28,7 @@ public class StationDaoImpl implements StationDAO {
         // Get the current hibernate Session
         Session currentSession = getSession();
 
-        currentSession.saveOrUpdate(station);
+        currentSession.merge(station);
 
     }
 

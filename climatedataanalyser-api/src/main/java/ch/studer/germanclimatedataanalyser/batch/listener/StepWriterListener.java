@@ -1,8 +1,8 @@
 package ch.studer.germanclimatedataanalyser.batch.listener;
 
 import ch.studer.germanclimatedataanalyser.model.database.Month;
-import org.springframework.batch.core.ItemWriteListener;
-import org.springframework.batch.item.Chunk;
+import org.springframework.batch.core.listener.ItemWriteListener;
+import org.springframework.batch.infrastructure.item.Chunk;
 
 
 public class StepWriterListener implements ItemWriteListener<Month> {

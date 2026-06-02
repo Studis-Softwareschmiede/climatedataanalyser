@@ -5,10 +5,10 @@ import ch.studer.germanclimatedataanalyser.model.dto.db.DbLoadResponseDto;
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbLoadInformationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.JobParametersBuilder;
-import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.job.parameters.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -22,13 +22,13 @@ import java.util.Map;
 @RequestMapping("/api/database")
 public class DataBaseController {
 
-    private final JobLauncher jobLauncher;
+    private final JobOperator jobLauncher;
     private final DbLoadInformationService dbLoadInformationService;
     private final Job job;
     private final JdbcTemplate jdbcTemplate;
     private final SkippedRecordTracker skippedRecordTracker;
 
-    public DataBaseController(JobLauncher jobLauncher, DbLoadInformationService dbLoadInformationService,
+    public DataBaseController(JobOperator jobLauncher, DbLoadInformationService dbLoadInformationService,
                               Job job, JdbcTemplate jdbcTemplate, SkippedRecordTracker skippedRecordTracker) {
         this.jobLauncher = jobLauncher;
         this.dbLoadInformationService = dbLoadInformationService;

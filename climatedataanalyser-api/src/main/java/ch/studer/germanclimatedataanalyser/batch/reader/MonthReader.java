@@ -1,8 +1,8 @@
 package ch.studer.germanclimatedataanalyser.batch.reader;
 
 import ch.studer.germanclimatedataanalyser.model.database.Month;
-import org.springframework.batch.item.database.JdbcCursorItemReader;
-import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
+import org.springframework.batch.infrastructure.item.database.JdbcCursorItemReader;
+import org.springframework.batch.infrastructure.item.database.builder.JdbcCursorItemReaderBuilder;
 import org.springframework.jdbc.core.RowMapper;
 
 import javax.sql.DataSource;

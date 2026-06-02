@@ -30,7 +30,7 @@ public class MonthDAOImpl implements MonthDAO {
         // get the current hibernate session
         Session currentSession = getSession();
 
-        currentSession.saveOrUpdate(month);
+        currentSession.merge(month);
 
     }
 
@@ -41,7 +41,7 @@ public class MonthDAOImpl implements MonthDAO {
         Session currentSession = getSession();
 
         for (Month month : months) {
-            currentSession.saveOrUpdate(month);
+            currentSession.merge(month);
         }
 
     }

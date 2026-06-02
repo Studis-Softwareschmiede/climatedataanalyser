@@ -5,8 +5,8 @@ import ch.studer.germanclimatedataanalyser.model.database.StationWeatherPerYear;
 import ch.studer.germanclimatedataanalyser.service.db.StationWeatherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.item.Chunk;
-import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.infrastructure.item.Chunk;
+import org.springframework.batch.infrastructure.item.ItemWriter;
 
 import java.util.ArrayList;
 import java.util.List;

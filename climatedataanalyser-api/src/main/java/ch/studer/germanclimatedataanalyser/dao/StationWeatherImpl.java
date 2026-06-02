@@ -31,7 +31,7 @@ public class StationWeatherImpl implements StationWeatherDAO {
 
         // Get the current hibernate Session
         Session currentSession = getSession();
-        getSession().save(stationWeatherPerYear);
+        getSession().persist(stationWeatherPerYear);
 
     }
 

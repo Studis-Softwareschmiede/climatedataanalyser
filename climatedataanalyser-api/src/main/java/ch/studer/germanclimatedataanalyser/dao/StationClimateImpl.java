@@ -34,7 +34,7 @@ public class StationClimateImpl implements StationClimateDAO {
 
         Session currentSession = getSession();
 
-        currentSession.saveOrUpdate(stationClimate);
+        currentSession.merge(stationClimate);
 
     }
 
@@ -46,7 +46,7 @@ public class StationClimateImpl implements StationClimateDAO {
 
         Session session = getSession();
         for (int i = 0; i < stationClimates.size(); i++) {
-            session.saveOrUpdate(stationClimates.get(i));
+            session.merge(stationClimates.get(i));
             if ((i + 1) % BATCH_SIZE == 0) {
                 session.flush();
                 session.clear();
