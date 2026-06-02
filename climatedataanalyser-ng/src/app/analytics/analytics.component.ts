@@ -1,4 +1,4 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Component, NgZone, OnDestroy, OnInit} from '@angular/core';
 import {ApiService} from '../shared/api.service';
 import {GpsPoint} from './model/GpsPoint';
 import {ClimateAnalyserResponseDto} from './model/ClimateAnalyserResponseDto';
@@ -7,6 +7,10 @@ import {FormBuilder, FormControl, FormGroup} from '@angular/forms';
 import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 import * as L from 'leaflet';
+// leaflet-draw bleibt importiert, weil es L.Rectangle.prototype um `.editing`
+// erweitert (Persistent-Edit nach dem Zeichnen). Die Toolbar selbst nutzen
+// wir NICHT mehr — die war flaky (Click-vs-Drag-Quirks in dieser Bundle-
+// Konstellation). Stattdessen eigener Drag-Handler unten.
 import 'leaflet-draw';
 
 @Component({
@@ -23,21 +27,24 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
 
   // Map state — public so template can bind [leafletLayer]="drawnItems"
   leafletOptions: L.MapOptions;
-  leafletDrawOptions: object;
   drawnItems: L.FeatureGroup;
 
   // Read-only coordinate display (AC-F9)
   nwDisplay: string = null;
   seDisplay: string = null;
 
+  // Drag-selection state (eigener Tool-Modus, statt Leaflet.draw)
+  isDrawing = false;
+  private startLatLng: L.LatLng | null = null;
+  private previewLayer: L.Rectangle | null = null;
+
   private map: L.Map;
   private fb: FormBuilder;
 
   // Lifecycle: unsubscribe all observables on destroy + tear down Leaflet map.
-  // Pattern aus database.component.ts übernommen.
   private destroy$ = new Subject<void>();
 
-  constructor(private apiService: ApiService, fb: FormBuilder) {
+  constructor(private apiService: ApiService, fb: FormBuilder, private zone: NgZone) {
     this.fb = fb;
     this.createForm();
     this.initLeafletOptions();
@@ -68,50 +75,124 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     };
 
     this.drawnItems = L.featureGroup();
-
-    // AC-F4 + AC-F6: rectangle only, danger-red style.
-    // Edit-Toolbar (Save/Cancel) bewusst DEAKTIVIERT — wir aktivieren das
-    // Editing direkt am Layer (persistent edit), so dass Ecken & Mitte
-    // sofort nach dem Zeichnen ziehbar sind, ohne den Umweg über Save.
-    // Gelöscht wird über den eigenen "Rechteck löschen"-Button im Template.
-    this.leafletDrawOptions = {
-      position: 'topleft',
-      draw: {
-        rectangle: {
-          shapeOptions: {
-            color: '#dc3545',
-            weight: 2,
-            fillColor: '#dc3545',
-            fillOpacity: 0.3
-          }
-        },
-        polygon: false,
-        polyline: false,
-        circle: false,
-        marker: false,
-        circlemarker: false
-      },
-      edit: false
-    };
   }
 
   onMapReady(map: L.Map) {
     this.map = map;
+    // Bewusst KEINE draw:created / draw:edited Handler — wir nutzen die
+    // Leaflet.draw-Toolbar nicht mehr. Alles läuft über startDrawing() unten.
+  }
 
-    // AC-F5 + AC-F7 + AC-F8: draw:created → replace old rectangle + persistent edit
-    this.map.on('draw:created', (event: any) => {
-      this.drawnItems.clearLayers();
-      const layer = event.layer as L.Rectangle;
-      this.drawnItems.addLayer(layer);
-      // Beim Zeichnen via Toolbar: bewusst auch das Dropdown leeren — der User
-      // hat ja eine neue Region per Hand definiert, das alte Bundesland-Tag
-      // gehört nicht mehr dazu (Convenience-Init ist überholt).
-      this.selectedBundesland = '';
-      this.updateCoordsFromLayer(layer);
-      // Sofort persistent editierbar machen — Eck-Marker & Mitten-Drag verfügbar
-      // ohne den Umweg über eine separate Edit-Toolbar + Save.
-      this.enablePersistentEdit(layer);
+  /**
+   * Vom Button "Bereich markieren" im Template aufgerufen.
+   * Aktiviert eigenen Drag-Selection-Modus:
+   *  - Map-Panning + Doppelklick-Zoom temporär aus (sonst pannt die Map)
+   *  - Cursor wird Crosshair
+   *  - mousedown auf Map → Start-Punkt erfassen
+   *  - mousemove → Vorschau-Rechteck wachsen lassen
+   *  - mouseup → finales Rechteck in drawnItems, Form-Update, Mode beenden
+   */
+  startDrawing() {
+    if (!this.map || this.isDrawing) {
+      return;
+    }
+    this.isDrawing = true;
+
+    // Map-Interaktionen pausieren — sonst pannt die Karte während wir ziehen
+    this.map.dragging.disable();
+    this.map.doubleClickZoom.disable();
+    this.map.boxZoom.disable();
+    this.map.getContainer().style.cursor = 'crosshair';
+
+    this.map.on('mousedown', this.onDrawMouseDown);
+  }
+
+  private onDrawMouseDown = (e: L.LeafletMouseEvent) => {
+    if (!this.map) {
+      return;
+    }
+    this.startLatLng = e.latlng;
+    // Vorhandenes Rechteck verwerfen — neue Selektion ersetzt alte.
+    this.drawnItems.clearLayers();
+    this.selectedBundesland = '';
+    this.clearSelection();
+
+    // Vorschau-Rechteck (degeneriert beim Start, wächst mit dem Drag)
+    this.previewLayer = L.rectangle(
+      L.latLngBounds(e.latlng, e.latlng),
+      {
+        color: '#dc3545',
+        weight: 2,
+        fillColor: '#dc3545',
+        fillOpacity: 0.3,
+        dashArray: '5, 5'
+      }
+    );
+    this.previewLayer.addTo(this.map);
+
+    this.map.on('mousemove', this.onDrawMouseMove);
+    this.map.on('mouseup', this.onDrawMouseUp);
+  };
+
+  private onDrawMouseMove = (e: L.LeafletMouseEvent) => {
+    if (!this.startLatLng || !this.previewLayer) {
+      return;
+    }
+    this.previewLayer.setBounds(L.latLngBounds(this.startLatLng, e.latlng));
+  };
+
+  private onDrawMouseUp = (e: L.LeafletMouseEvent) => {
+    if (!this.startLatLng || !this.previewLayer || !this.map) {
+      this.stopDrawing();
+      return;
+    }
+
+    const bounds = L.latLngBounds(this.startLatLng, e.latlng);
+
+    // Preview entfernen — gleich kommt der finale, durchgezogen gerenderte Layer.
+    this.map.removeLayer(this.previewLayer);
+    this.previewLayer = null;
+    this.startLatLng = null;
+
+    // Tool-Mode beenden (Map-Interaktionen wieder an, Handler ab)
+    this.stopDrawing();
+
+    // Degenerate-Check: bei einem Klick ohne Drag haben wir nw == se.
+    const nw = bounds.getNorthWest();
+    const se = bounds.getSouthEast();
+    if (nw.lat === se.lat && nw.lng === se.lng) {
+      console.warn('analytics: Klick ohne Drag — kein Rechteck erstellt.');
+      return;
+    }
+
+    // Finales Rechteck (durchgezogene Linie) anlegen und alle State syncen.
+    // Wir kapseln das in NgZone.run, damit Angular die Change-Detection
+    // anstößt (Leaflet-Events laufen außerhalb der Zone).
+    this.zone.run(() => {
+      const finalRect = L.rectangle(bounds, {
+        color: '#dc3545',
+        weight: 2,
+        fillColor: '#dc3545',
+        fillOpacity: 0.3
+      });
+      this.drawnItems.addLayer(finalRect);
+      this.updateCoordsFromLayer(finalRect);
+      this.enablePersistentEdit(finalRect);
     });
+  };
+
+  private stopDrawing() {
+    this.isDrawing = false;
+    if (!this.map) {
+      return;
+    }
+    this.map.dragging.enable();
+    this.map.doubleClickZoom.enable();
+    this.map.boxZoom.enable();
+    this.map.getContainer().style.cursor = '';
+    this.map.off('mousedown', this.onDrawMouseDown);
+    this.map.off('mousemove', this.onDrawMouseMove);
+    this.map.off('mouseup', this.onDrawMouseUp);
   }
 
   /**
@@ -119,7 +200,6 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
    * - Eckpunkte & Mitten-Marker werden sofort angezeigt
    * - User kann Ecken / ganze Box ziehen
    * - Bei jedem Drag-Ende werden die Form-Werte synchronisiert
-   * Ersatz für die abgeschaltete Edit-Toolbar (kein "Save"-Klick nötig).
    */
   private enablePersistentEdit(layer: any) {
     try {
@@ -127,10 +207,10 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
       if (editing && typeof editing.enable === 'function') {
         editing.enable();
       }
-      // Leaflet.draw firet auf dem Layer 'edit' sobald ein Drag abgeschlossen ist.
-      // 'editdrag' / 'editmove' während des Drags — wir nehmen das zum Live-Update.
       if (layer && typeof layer.on === 'function') {
-        layer.on('edit editdrag editmove', () => this.updateCoordsFromLayer(layer));
+        layer.on('edit editdrag editmove', () => {
+          this.zone.run(() => this.updateCoordsFromLayer(layer));
+        });
       }
     } catch (e) {
       console.warn('analytics: enablePersistentEdit failed (non-fatal)', e);
@@ -155,9 +235,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   /**
    * Liest den (einzigen) Rectangle-Layer aus drawnItems, oder null.
    * Wird vom Submit-Pfad benutzt, um die aktuellen Bounds direkt vom Layer
-   * zu ziehen — robuster als sich auf die Form zu verlassen (das edit-Event
-   * von Leaflet.draw firet je nach Version unterschiedlich zuverlässig).
-   * Duck-typing wieder, aus dem gleichen Grund wie in updateCoordsFromLayer.
+   * zu ziehen — robuster als sich auf die Form zu verlassen.
    */
   private getCurrentRectangle(): any {
     let found: any = null;
@@ -170,12 +248,6 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   }
 
   private updateCoordsFromLayer(layer: any) {
-    // Duck-typing statt `instanceof L.Rectangle`: Webpack kann am Ende zwei
-    // verschiedene `L`-Identitäten produzieren (eine via `import * as L`,
-    // eine die Leaflet.draw selbst zieht), wodurch der instanceof-Check
-    // false zurückgibt, OBWOHL der Layer faktisch ein Rectangle ist. Wir
-    // prüfen die Methoden, nicht die Klasse — funktioniert für Rectangle &
-    // Polygon, fängt Marker raus (haben kein getBounds).
     if (!layer || typeof layer.getBounds !== 'function') {
       return;
     }
@@ -186,10 +258,8 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     const nw = bounds.getNorthWest();
     const se = bounds.getSouthEast();
 
-    // Defensive: warn (and skip form update) when the rectangle has zero area —
-    // typically a single-click on the map without dragging.
     if (nw.lat === se.lat && nw.lng === se.lng) {
-      console.warn('analytics: degenerate rectangle (NW == SE) — ignored. Bitte ziehen statt klicken.');
+      console.warn('analytics: degenerate rectangle (NW == SE) — ignored.');
       return;
     }
 
@@ -216,15 +286,8 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     return hasBox || hasBundesland;
   }
 
-  // AC-F13: submit. Prioritisierung:
-  // 1) Wenn ein Rechteck auf der Karte existiert → live bounds vom Layer lesen
-  //    (nicht aus dem Form, falls das edit-Event nicht zuverlässig firet) → GPS senden, Bundesland leer.
-  // 2) Wenn KEIN Rechteck, aber Bundesland gewählt → nur Bundesland senden.
   onClickSubmit() {
     const v = this.angForm.value;
-
-    // Live-Bounds vom aktuellen Rectangle-Layer ziehen — das ist die Wahrheit,
-    // unabhängig von Form-Werten oder edit-Event-Quirks.
     const rect = this.getCurrentRectangle();
     let gps1: GpsPoint;
     let gps2: GpsPoint;
@@ -237,7 +300,6 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
       gps1 = new GpsPoint(nw.lng, nw.lat);
       gps2 = new GpsPoint(se.lng, se.lat);
       bundeslandParam = '';
-      // Form-Werte sync zum aktuellen Stand (vor Submit)
       this.angForm.patchValue({gps1lat: nw.lat, gps1long: nw.lng, gps2lat: se.lat, gps2long: se.lng});
     } else if (this.selectedBundesland) {
       gps1 = new GpsPoint(0, 0);
@@ -269,11 +331,12 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    // 1) signal all takeUntil-piped subscriptions to unsubscribe
     this.destroy$.next();
     this.destroy$.complete();
-    // 2) tear down Leaflet — without this, the map keeps tile-event listeners
-    //    on window/document and accumulates per route-navigation.
+    // Falls noch im Draw-Mode: aufräumen
+    if (this.isDrawing) {
+      this.stopDrawing();
+    }
     if (this.map) {
       this.map.off();
       this.map.remove();
@@ -303,23 +366,23 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (bbox) => {
-          this.drawnItems.clearLayers();
-          const nw: [number, number] = [bbox.nw.latitude, bbox.nw.longitude];
-          const se: [number, number] = [bbox.se.latitude, bbox.se.longitude];
-          const rect = L.rectangle([nw, se], {
-            color: '#dc3545',
-            weight: 2,
-            fillColor: '#dc3545',
-            fillOpacity: 0.3
+          this.zone.run(() => {
+            this.drawnItems.clearLayers();
+            const nw: [number, number] = [bbox.nw.latitude, bbox.nw.longitude];
+            const se: [number, number] = [bbox.se.latitude, bbox.se.longitude];
+            const rect = L.rectangle([nw, se], {
+              color: '#dc3545',
+              weight: 2,
+              fillColor: '#dc3545',
+              fillOpacity: 0.3
+            });
+            this.drawnItems.addLayer(rect);
+            this.updateCoordsFromLayer(rect);
+            this.enablePersistentEdit(rect);
+            if (this.map) {
+              this.map.fitBounds(rect.getBounds());
+            }
           });
-          this.drawnItems.addLayer(rect);
-          this.updateCoordsFromLayer(rect);
-          // Auch beim Bundesland-Vorzeichnen: persistent edit aktivieren,
-          // damit der User die vorgezeichnete Box direkt feintunen kann.
-          this.enablePersistentEdit(rect);
-          if (this.map) {
-            this.map.fitBounds(rect.getBounds());
-          }
         },
         error: () => {
           alert('Could not load bounding box for: ' + selectedBundesland);

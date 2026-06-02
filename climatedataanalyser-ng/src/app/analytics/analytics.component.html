@@ -1,36 +1,49 @@
-<!-- AC-F1: Map above the form, min-height 480px -->
+<!-- Toolbar über der Karte (eigene, statt Leaflet.draw) -->
+<div class="analytics-toolbar">
+  <button type="button"
+          class="btn btn-sm"
+          [class.btn-primary]="!isDrawing"
+          [class.btn-warning]="isDrawing"
+          [disabled]="isDrawing"
+          (click)="startDrawing()"
+          [title]="isDrawing ? 'Bitte auf der Karte ziehen' : 'Klick + auf der Karte ziehen, um einen Bereich zu markieren'">
+    <ng-container *ngIf="!isDrawing">◻ Bereich markieren</ng-container>
+    <ng-container *ngIf="isDrawing">✏ Bitte auf der Karte ziehen…</ng-container>
+  </button>
+
+  <button type="button"
+          class="btn btn-sm btn-outline-danger"
+          (click)="clearRectangle()"
+          *ngIf="nwDisplay"
+          title="Rechteck entfernen und neu zeichnen">
+    🗑️ Rechteck löschen
+  </button>
+</div>
+
+<!-- AC-F1: Map -->
 <div class="analytics-map-container">
   <div
     leaflet
-    leafletDraw
     [leafletOptions]="leafletOptions"
-    [leafletDrawOptions]="leafletDrawOptions"
     (leafletMapReady)="onMapReady($event)"
     class="analytics-map">
     <div [leafletLayer]="drawnItems"></div>
   </div>
 </div>
 
-<!-- AC-F9: Read-only coordinate display under the map + clear button -->
+<!-- AC-F9: Read-only coordinate display under the map -->
 <div class="analytics-coords">
-  <div class="d-flex align-items-center flex-wrap" style="gap: .75rem;">
-    <ng-container *ngIf="nwDisplay; else noSelection">
-      <span class="coord-label">{{ nwDisplay }}</span>
-      <span class="coord-label">{{ seDisplay }}</span>
-      <button type="button"
-              class="btn btn-sm btn-outline-danger"
-              (click)="clearRectangle()"
-              title="Rechteck entfernen und neu zeichnen">
-        🗑️ Rechteck löschen
-      </button>
-    </ng-container>
-    <ng-template #noSelection>
-      <span class="coord-placeholder">— Klick auf das Rechteck-Icon ◻ oben links, dann mit gedrückter Maustaste auf der Karte ziehen —</span>
-    </ng-template>
-  </div>
+  <ng-container *ngIf="nwDisplay; else noSelection">
+    <span class="coord-label">{{ nwDisplay }}</span>
+    &nbsp;&nbsp;
+    <span class="coord-label">{{ seDisplay }}</span>
+  </ng-container>
+  <ng-template #noSelection>
+    <span class="coord-placeholder">— „Bereich markieren" oben klicken, dann mit gedrückter Maustaste über die Karte ziehen —</span>
+  </ng-template>
   <p class="coord-tip">
     Tipp: ein Rechteck mit mind. 0.5° Kantenlänge erhöht die Trefferzahl.
-    Nach dem Zeichnen kannst du Ecken & die ganze Box direkt mit der Maus ziehen — kein Save-Klick nötig.
+    Nach dem Zeichnen kannst du Ecken & die ganze Box direkt mit der Maus ziehen.
   </p>
 </div>
 
@@ -63,7 +76,6 @@
     </label>
 
     <br/>
-    <!-- AC-F12: disabled until rectangle drawn or Bundesland selected -->
     <button
       type="submit"
       [disabled]="!hasSelection"
