@@ -10,6 +10,11 @@
 # dependencies
 /node_modules
 
+# frontend-maven-plugin download target (workingDirectory=src/main/web/)
+# overrides the root .gitignore's `!**/src/main/**` un-ignore for these build artifacts
+/src/main/web/node
+/src/main/web/node_modules
+
 # profiling files
 chrome-profiler-events*.json
 speed-measure-plugin*.json
