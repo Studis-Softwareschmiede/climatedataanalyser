@@ -1,0 +1,27 @@
+# End-to-End-Runtime-Smoke (Container + echte MySQL + DWD-FTP-Import).
+# Bewusst NICHT per-PR: externer FTP (opendata.dwd.de) + Minuten-Laufzeit.
+# Manuell (workflow_dispatch) oder nightly. Deckt die H2-Unit-Test-Blindstellen ab
+# (Flyway-Modul/Dialekt/Treiber, gepacktes Image, non-root-Pfade, async-JobLauncher).
+name: e2e-smoke
+on:
+  workflow_dispatch:
+    inputs:
+      withFTP:
+        description: "echten DWD-FTP-Download fahren"
+        type: boolean
+        default: true
+  schedule:
+    - cron: "0 3 * * 0"   # wöchentlich So 03:00 UTC
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: E2E FTP smoke
+        env:
+          WITHFTP: ${{ github.event.inputs.withFTP != 'false' }}
+          JOB_TIMEOUT: "900"
+        run: bash scripts/e2e-ftp-smoke.sh climatedataanalyser:e2e

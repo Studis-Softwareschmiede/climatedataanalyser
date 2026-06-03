@@ -32,10 +32,11 @@ adoption_validated_migration_tool: flyway       # Skeleton-Runner entfernt; Sche
 # /upgrade-Lauf (Spec docs/specs/upgrade-2026-06-02-upgrade.md)
 upgrade:
   run_id: 2026-06-02-upgrade
-  status: executing                               # AC-L1 (#77) DONE+merged (#92, java17, 58 Tests grün); nächste Stufe AC-F1 (#78)
+  status: blocked                                 # AC-L1/F1/L2 done+merged (SB3.3.13+JDK21); AC-F2 (SB4) blocked → branch upgrade/ac-f2-springboot4, supervised
   timeout_hours: 8                                # weiche Obergrenze für Overnight-Lauf
   tracking_issue: 91
   done: [77, 78, 79]                              # AC-L1 java17; AC-F1 SB3.3.13; AC-L2 java21
+  blocked: [80]                                   # AC-F2 SB4 — Spring Batch 6 readers, needs supervised runtime-verify (WIP branch upgrade/ac-f2-springboot4)
   targets:
     java: "21"                                    # interleaved: 11→17→21
     spring-boot: "4"                              # Leiter 2.6→3.x→4.x
