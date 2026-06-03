@@ -9,6 +9,8 @@ import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobOperator;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +29,10 @@ public class DataBaseController {
     private final Job job;
     private final JdbcTemplate jdbcTemplate;
     private final SkippedRecordTracker skippedRecordTracker;
+    // Async-Dispatch: JobOperator/JobLauncher.run() ist auf Spring Batch 6 SYNCHRON und
+    // würde den HTTP-Request für die gesamte Import-Dauer (Minuten) blockieren → Frontend-
+    // Spinner hängt. Der Hintergrund-Executor entkoppelt das versions-unabhängig.
+    private final TaskExecutor jobTaskExecutor = new SimpleAsyncTaskExecutor("batch-job-");
 
     public DataBaseController(JobOperator jobLauncher, DbLoadInformationService dbLoadInformationService,
                               Job job, JdbcTemplate jdbcTemplate, SkippedRecordTracker skippedRecordTracker) {
@@ -54,14 +60,21 @@ public class DataBaseController {
     );
 
     @GetMapping("/batchImportStart")
-    public void handle(@RequestParam(value = "withFTP", defaultValue = "false") String withFTP) throws Exception {
+    public void handle(@RequestParam(value = "withFTP", defaultValue = "false") String withFTP) {
 
         JobParameters jobParameters =
                 new JobParametersBuilder()
                         .addLong("time", System.currentTimeMillis())
                         .addString("withFTP", withFTP)
                         .toJobParameters();
-        jobLauncher.run(job, jobParameters);
+        // async: Request kehrt sofort zurück, Job läuft im Hintergrund-Thread (Frontend pollt).
+        jobTaskExecutor.execute(() -> {
+            try {
+                jobLauncher.run(job, jobParameters);
+            } catch (Exception e) {
+                log.error("Batch-Job-Start fehlgeschlagen", e);
+            }
+        });
 
     }
 

@@ -70,8 +70,13 @@ for i in $(seq 1 60); do
   sleep 2; [ "$i" = 60 ] && fail "MySQL nicht ready"
 done
 
-log "App-Container starten ($IMAGE)"
+log "App-Container starten ($IMAGE, mem=${APP_MEM:-2g})"
+# Memory: der Voll-Import (745k+ Records, Climate-Berechnung) ist heap-intensiv und wurde
+# unter SB4/Hibernate 7 OOM-gekillt. Container-Limit + MaxRAMPercentage halten den JVM-Heap
+# im Limit (statt unbegrenzt zu wachsen → OOMKilled durch den Host).
 docker run -d --name "$APP" --network "$NET" \
+  --memory "${APP_MEM:-2g}" --memory-swap "${APP_MEM:-2g}" \
+  -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 ${JAVA_EXTRA_OPTS:-}" \
   -e SPRING_DATASOURCE_URL="jdbc:mysql://db:3306/${DB_NAME}?zeroDateTimeBehavior=CONVERT_TO_NULL&serverTimezone=Europe/Berlin" \
   -e SPRING_DATASOURCE_USERNAME="$DB_USER" \
   -e SPRING_DATASOURCE_PASSWORD="$DB_PASS" \
@@ -89,7 +94,9 @@ for i in $(seq 1 40); do
 done
 docker logs "$APP" 2>&1 | grep -iE 'Successfully applied .* migrations|Migrating schema' | tail -2 || true
 
-q() { docker exec "$DB" mysql -uroot -p"$DB_ROOT" -N "$DB_NAME" -e "$1" 2>/dev/null | grep -v Warning; }
+# '|| true': bei leerem Resultat liefert 'grep -v' exit 1 → würde unter 'set -e' das Skript
+# killen. Tritt beim async-Launcher auf, wenn beim 1. Poll noch keine Job-Zeile existiert.
+q() { docker exec "$DB" mysql -uroot -p"$DB_ROOT" -N "$DB_NAME" -e "$1" 2>/dev/null | grep -v Warning || true; }
 
 log "FTP-Import triggern (withFTP=$WITHFTP) + Async-Launcher-Check (<= ${ASYNC_MAX}s)"
 t=$(curl -s -m "$ASYNC_MAX" -o /dev/null -w '%{time_total}' \
