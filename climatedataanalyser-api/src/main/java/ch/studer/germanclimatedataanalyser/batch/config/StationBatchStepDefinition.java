@@ -24,11 +24,13 @@ import org.springframework.batch.item.file.transform.Range;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 
 @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
@@ -94,41 +96,48 @@ public class StationBatchStepDefinition {
     @Bean
     @StepScope
     public FlatFileItemReader<StationFile> readerStation() {
+        //Create reader instance
+        FlatFileItemReader<StationFile> reader = new FlatFileItemReader<StationFile>();
+
+        // Fehlende Input-Datei (z.B. Import-Lauf mit withFTP=false → kein Download) darf
+        // die Bean-Erzeugung NICHT crashen lassen (Issue #29). setStrict(false) → existiert
+        // die Resource beim open() nicht, liest der Reader 0 Records statt zu werfen.
+        reader.setStrict(false);
+
         try {
             // Get the File as Resource object
             Resource inputResource = DirectoryUtilityImpl.getResource(DirectoryUtilityImpl.getDirectory(ftpDirectoryName), stationFileName);
-
-            //Create reader instance
-            FlatFileItemReader<StationFile> reader = new FlatFileItemReader<StationFile>();
-
             // There should be only One File ! So take the first one !
             reader.setResource(inputResource);
-
-            //Set the right encoding for ANSI
-            reader.setEncoding("Cp1252");
-
-            //Set number of lines to skips. Use it if file has header rows.
-            reader.setLinesToSkip(2);
-
-            //Configure how each line will be parsed and mapped to different values
-            reader.setLineMapper(new DefaultLineMapper() {
-                {
-                    //
-                    setLineTokenizer(stationTokenizer());
-                    //Set values in Employee class
-                    setFieldSetMapper(new BeanWrapperFieldSetMapper<StationFile>() {
-                        {
-                            setTargetType(StationFile.class);
-                        }
-                    });
-                }
-            });
-            return reader;
-
         } catch (FileNotFoundException e) {
-            log.error("Station input file not found (pattern: {}): {}", stationFileName, e.getMessage(), e);
-            throw new RuntimeException(e);
+            // Keine Station-Datei vorhanden: auf die (nicht existente) Soll-Datei zeigen.
+            // Zusammen mit setStrict(false) ergibt das einen leeren Read statt eines Crashs.
+            log.warn("Station input file not found (pattern: {}) — reader will read 0 records (withFTP=false?): {}",
+                    stationFileName, e.getMessage());
+            reader.setResource(new FileSystemResource(
+                    new File(DirectoryUtilityImpl.getDirectory(ftpDirectoryName), stationFileName)));
         }
+
+        //Set the right encoding for ANSI
+        reader.setEncoding("Cp1252");
+
+        //Set number of lines to skips. Use it if file has header rows.
+        reader.setLinesToSkip(2);
+
+        //Configure how each line will be parsed and mapped to different values
+        reader.setLineMapper(new DefaultLineMapper() {
+            {
+                //
+                setLineTokenizer(stationTokenizer());
+                //Set values in Employee class
+                setFieldSetMapper(new BeanWrapperFieldSetMapper<StationFile>() {
+                    {
+                        setTargetType(StationFile.class);
+                    }
+                });
+            }
+        });
+        return reader;
     }
 
     @Bean
