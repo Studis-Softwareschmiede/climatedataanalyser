@@ -1,5 +1,5 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
-import {HttpEventType} from '@angular/common/http';
+import { HttpEventType } from '@angular/common/http';
 import {ApiService} from '../shared/api.service';
 import {AppInfoDto} from './model/AppInfoDto';
 import {Subject} from 'rxjs';

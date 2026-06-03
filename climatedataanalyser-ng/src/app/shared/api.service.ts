@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import {HttpClient, HttpEvent, HttpParams, HttpRequest} from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpParams, HttpRequest } from '@angular/common/http';
 import {Observable} from 'rxjs';
 import {GpsPoint} from '../analytics/model/GpsPoint';
 import {ClimateAnalyserResponseDto} from '../analytics/model/ClimateAnalyserResponseDto';

@@ -1,6 +1,6 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
 import {ApiService} from '../shared/api.service';
-import {HttpEventType} from '@angular/common/http';
+import { HttpEventType } from '@angular/common/http';
 import {DbLoadResponseDto, DbLoadSteps, SkippedRecord} from './model/DbLoadResponseDto';
 import {DbStatus} from '../shared/dbStatusEnum';
 import {Subject} from 'rxjs';
