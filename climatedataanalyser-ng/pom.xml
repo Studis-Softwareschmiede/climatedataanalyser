@@ -21,8 +21,9 @@
         <version>1.12.0</version>
 
         <configuration>
-          <nodeVersion>v16.10.0</nodeVersion>
-          <npmVersion>8.6.0</npmVersion>
+          <!-- Node 20.19 deckt Angular 17–21 ab (NG21 fordert >=20.19.0). -->
+          <nodeVersion>v20.19.0</nodeVersion>
+          <npmVersion>10.8.2</npmVersion>
           <workingDirectory>src/main/web/</workingDirectory>
         </configuration>
 

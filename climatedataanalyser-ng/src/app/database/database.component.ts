@@ -1,6 +1,6 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
 import {ApiService} from '../shared/api.service';
-import {HttpEventType} from '@angular/common/http';
+import { HttpEventType } from '@angular/common/http';
 import {DbLoadResponseDto, DbLoadSteps, SkippedRecord} from './model/DbLoadResponseDto';
 import {DbStatus} from '../shared/dbStatusEnum';
 import {Subject} from 'rxjs';
@@ -15,9 +15,10 @@ const POLL_FAST_MS = 500;
 const POLL_IDLE_MS = 2000;
 
 @Component({
-  selector: 'app-database',
-  templateUrl: './database.component.html',
-  styleUrls: ['./database.component.css']
+    selector: 'app-database',
+    templateUrl: './database.component.html',
+    styleUrls: ['./database.component.css'],
+    standalone: false
 })
 export class DatabaseComponent implements OnInit, OnDestroy {
   message: string = '';

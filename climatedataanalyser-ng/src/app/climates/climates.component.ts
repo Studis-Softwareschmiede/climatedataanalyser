@@ -1,28 +1,29 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
-import {FormBuilder, FormControl, FormGroup} from '@angular/forms';
+import {UntypedFormBuilder, UntypedFormControl, UntypedFormGroup} from '@angular/forms';
 import {ApiService} from '../shared/api.service';
 import {ClimateResponseDto} from './model/ClimateResponseDto';
-import {HttpEventType} from '@angular/common/http';
+import { HttpEventType } from '@angular/common/http';
 import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
 @Component({
-  selector: 'app-climates', templateUrl: './climates.component.html', styleUrls: ['./climates.component.css']
+    selector: 'app-climates', templateUrl: './climates.component.html', styleUrls: ['./climates.component.css'],
+    standalone: false
 })
 export class ClimatesComponent implements OnInit, OnDestroy {
 
   bundeslaender: Array<string> | null = null;
   selectedBundesland: string = '';
-  angForm!: FormGroup;
+  angForm!: UntypedFormGroup;
   climateResponseDto: ClimateResponseDto | null = null;
   private startYear: string = '';
   private distanceYear: string = '';
-  private fb: FormBuilder;
+  private fb: UntypedFormBuilder;
   private zero: string = '0';
 
   private destroy$ = new Subject<void>();
 
-  constructor(private apiService: ApiService, fb: FormBuilder) {
+  constructor(private apiService: ApiService, fb: UntypedFormBuilder) {
     this.fb = fb;
     this.createForm();
   }
@@ -116,12 +117,12 @@ export class ClimatesComponent implements OnInit, OnDestroy {
     // Weisweil   79367 : 48.181837104192695, 7.6906623449884695
     // Stühlingen 79780 : 47.73683613454628, 8.360463439669749
     this.angForm = this.fb.group({
-      gps1lat: new FormControl('48.181837104192695'),
-      gps1long: new FormControl('7.6906623449884695'),
-      gps2lat: new FormControl('47.73683613454628'),
-      gps2long: new FormControl('8.360463439669749'),
-      startYear: new FormControl('1900'),
-      distanceYear: new FormControl('30')
+      gps1lat: new UntypedFormControl('48.181837104192695'),
+      gps1long: new UntypedFormControl('7.6906623449884695'),
+      gps2lat: new UntypedFormControl('47.73683613454628'),
+      gps2long: new UntypedFormControl('8.360463439669749'),
+      startYear: new UntypedFormControl('1900'),
+      distanceYear: new UntypedFormControl('30')
     });
   }
 
