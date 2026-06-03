@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build --base-href= --prod",
+    "build": "ng build --base-href=",
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e"
@@ -41,7 +41,7 @@
     "@types/jasmine": "~3.8.2",
     "@types/jasminewd2": "~2.0.10",
     "@types/leaflet": "^1.7.11",
-    "@types/leaflet-draw": "^0.4.14",
+    "@types/leaflet-draw": "^1.0.13",
     "@types/node": "~16.6.1",
     "codelyzer": "^6.0.2",
     "jasmine-core": "~3.8.0",
