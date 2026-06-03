@@ -98,20 +98,8 @@ public class StationBatchStepDefinition {
             // Get the File as Resource object
             Resource inputResource = DirectoryUtilityImpl.getResource(DirectoryUtilityImpl.getDirectory(ftpDirectoryName), stationFileName);
 
-            //Create reader instance
-            FlatFileItemReader<StationFile> reader = new FlatFileItemReader<StationFile>();
-
-            // There should be only One File ! So take the first one !
-            reader.setResource(inputResource);
-
-            //Set the right encoding for ANSI
-            reader.setEncoding("Cp1252");
-
-            //Set number of lines to skips. Use it if file has header rows.
-            reader.setLinesToSkip(2);
-
             //Configure how each line will be parsed and mapped to different values
-            reader.setLineMapper(new DefaultLineMapper() {
+            DefaultLineMapper<StationFile> lineMapper = new DefaultLineMapper<>() {
                 {
                     //
                     setLineTokenizer(stationTokenizer());
@@ -122,7 +110,19 @@ public class StationBatchStepDefinition {
                         }
                     });
                 }
-            });
+            };
+            //Create reader instance (Batch 6: LineMapper via Konstruktor, no-arg-Ctor entfernt)
+            FlatFileItemReader<StationFile> reader = new FlatFileItemReader<>(lineMapper);
+
+            // There should be only One File ! So take the first one !
+            reader.setResource(inputResource);
+
+            //Set the right encoding for ANSI
+            reader.setEncoding("Cp1252");
+
+            //Set number of lines to skips. Use it if file has header rows.
+            reader.setLinesToSkip(2);
+
             return reader;
 
         } catch (FileNotFoundException e) {

@@ -18,6 +18,7 @@ import org.springframework.batch.core.step.Step;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
 import org.springframework.batch.infrastructure.item.file.MultiResourceItemReader;
+import org.springframework.batch.infrastructure.item.file.builder.MultiResourceItemReaderBuilder;
 import org.springframework.batch.infrastructure.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.infrastructure.item.file.FlatFileParseException;
 import org.springframework.batch.infrastructure.item.file.mapping.DefaultLineMapper;
@@ -57,9 +58,11 @@ public class TemperatureForMonthBatchConfiguration {
         Resource[] inputResources = DirectoryUtilityImpl.getResources(DirectoryUtilityImpl.getDirectory(inputDirectoryName).listFiles(), inputFilePattern);
         log.info("InputRessource :" + inputResources.toString());
 
-        MultiResourceItemReader<MonthFile> resourceItemReader = new MultiResourceItemReader<MonthFile>();
-        resourceItemReader.setResources(inputResources);
-        resourceItemReader.setDelegate(reader());
+        MultiResourceItemReader<MonthFile> resourceItemReader = new MultiResourceItemReaderBuilder<MonthFile>()
+                .name("monthMultiResourceReader")
+                .resources(inputResources)
+                .delegate(reader())
+                .build();
         return resourceItemReader;
     }
 
@@ -67,15 +70,8 @@ public class TemperatureForMonthBatchConfiguration {
     @Bean
     @StepScope
     public FlatFileItemReader<MonthFile> reader() {
-        //Create reader instance
-        FlatFileItemReader<MonthFile> reader = new FlatFileItemReader<MonthFile>();
-
-        //Set number of lines to skips. Use it if file has header rows.
-        reader.setLinesToSkip(1);
-        reader.setEncoding("utf-8");
-
         //Configure how each line will be parsed and mapped to different values
-        reader.setLineMapper(new DefaultLineMapper() {
+        DefaultLineMapper<MonthFile> lineMapper = new DefaultLineMapper<>() {
             {
                 //3 columns in each row
                 setLineTokenizer(new DelimitedLineTokenizer() {
@@ -108,7 +104,11 @@ public class TemperatureForMonthBatchConfiguration {
                     }
                 });
             }
-        });
+        };
+        //Batch 6: LineMapper via Konstruktor (no-arg-Ctor entfernt)
+        FlatFileItemReader<MonthFile> reader = new FlatFileItemReader<>(lineMapper);
+        reader.setLinesToSkip(1);
+        reader.setEncoding("utf-8");
         return reader;
     }
 
