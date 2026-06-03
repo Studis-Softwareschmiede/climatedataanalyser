@@ -17,12 +17,19 @@ WORKDIR /app
 # Run as non-root user (useradd must come before COPY so --chown works)
 RUN useradd --system --no-create-home --shell /sbin/nologin appuser
 
+# Writable Data-Dir für den non-root appuser. Der Batch-Import schreibt seine
+# Arbeitsordner (download/FTPData, InputFiles, Unzip…) RELATIV zum Arbeitsverzeichnis;
+# /app gehört root (nicht schreibbar) → ohne dies: AccessDeniedException beim FTP-Load.
+RUN mkdir -p /app/data && chown appuser:appuser /app/data
+
 # warName=ClimateAnalyser produces ClimateAnalyser.war (plain, no Main-Class).
 # Spring Boot repackages to climatedataanalyser-api-<version>.war (executable, WarLauncher).
 # Glob matches only the repackaged WAR; ClimateAnalyser.war does NOT match this pattern.
 COPY --chown=appuser:appuser --from=build /build/climatedataanalyser-api/target/climatedataanalyser-api-*.war /app.war
 
 USER appuser
+# cwd auf das writable Data-Dir: relative climate.path.*-Ordner landen hier (schreibbar).
+WORKDIR /app/data
 
 # server.port=8092 (verified in climatedataanalyser-api/src/main/resources/application.properties)
 EXPOSE 8092
