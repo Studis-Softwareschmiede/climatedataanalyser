@@ -7,7 +7,8 @@ import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
 @Component({
-  selector: 'app-climates', templateUrl: './climates.component.html', styleUrls: ['./climates.component.css']
+    selector: 'app-climates', templateUrl: './climates.component.html', styleUrls: ['./climates.component.css'],
+    standalone: false
 })
 export class ClimatesComponent implements OnInit, OnDestroy {
 

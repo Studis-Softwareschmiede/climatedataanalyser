@@ -15,9 +15,10 @@ const POLL_FAST_MS = 500;
 const POLL_IDLE_MS = 2000;
 
 @Component({
-  selector: 'app-database',
-  templateUrl: './database.component.html',
-  styleUrls: ['./database.component.css']
+    selector: 'app-database',
+    templateUrl: './database.component.html',
+    styleUrls: ['./database.component.css'],
+    standalone: false
 })
 export class DatabaseComponent implements OnInit, OnDestroy {
   message: string = '';
