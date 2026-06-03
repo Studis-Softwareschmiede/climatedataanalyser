@@ -1,23 +1,28 @@
 <!-- Toolbar über der Karte (eigene, statt Leaflet.draw) -->
 <div class="analytics-toolbar">
   <button type="button"
-          class="btn btn-sm"
-          [class.btn-primary]="!isDrawing"
-          [class.btn-warning]="isDrawing"
-          [disabled]="isDrawing"
-          (click)="startDrawing()"
-          [title]="isDrawing ? 'Bitte auf der Karte ziehen' : 'Klick + auf der Karte ziehen, um einen Bereich zu markieren'">
-    <ng-container *ngIf="!isDrawing">◻ Bereich markieren</ng-container>
-    <ng-container *ngIf="isDrawing">✏ Bitte auf der Karte ziehen…</ng-container>
+    class="btn btn-sm"
+    [class.btn-primary]="!isDrawing"
+    [class.btn-warning]="isDrawing"
+    [disabled]="isDrawing"
+    (click)="startDrawing()"
+    [title]="isDrawing ? 'Bitte auf der Karte ziehen' : 'Klick + auf der Karte ziehen, um einen Bereich zu markieren'">
+    @if (!isDrawing) {
+      ◻ Bereich markieren
+    }
+    @if (isDrawing) {
+      ✏ Bitte auf der Karte ziehen…
+    }
   </button>
 
-  <button type="button"
-          class="btn btn-sm btn-outline-danger"
-          (click)="clearRectangle()"
-          *ngIf="nwDisplay"
-          title="Rechteck entfernen und neu zeichnen">
-    🗑️ Rechteck löschen
-  </button>
+  @if (nwDisplay) {
+    <button type="button"
+      class="btn btn-sm btn-outline-danger"
+      (click)="clearRectangle()"
+      title="Rechteck entfernen und neu zeichnen">
+      🗑️ Rechteck löschen
+    </button>
+  }
 </div>
 
 <!-- AC-F1: Map -->
@@ -33,14 +38,13 @@
 
 <!-- AC-F9: Read-only coordinate display under the map -->
 <div class="analytics-coords">
-  <ng-container *ngIf="nwDisplay; else noSelection">
+  @if (nwDisplay) {
     <span class="coord-label">{{ nwDisplay }}</span>
     &nbsp;&nbsp;
     <span class="coord-label">{{ seDisplay }}</span>
-  </ng-container>
-  <ng-template #noSelection>
+  } @else {
     <span class="coord-placeholder">— „Bereich markieren" oben klicken, dann mit gedrückter Maustaste über die Karte ziehen —</span>
-  </ng-template>
+  }
   <p class="coord-tip">
     Tipp: ein Rechteck mit mind. 0.5° Kantenlänge erhöht die Trefferzahl.
     Nach dem Zeichnen kannst du Ecken & die ganze Box direkt mit der Maus ziehen.
@@ -51,16 +55,20 @@
 <div class="analytics-bundesland">
   <label for="Bundeslaender">Bundesland auswählen:</label>
   <select id="Bundeslaender" [(ngModel)]="selectedBundesland"
-          (ngModelChange)="onBundeslaenderDropDownListSelected($event)">
+    (ngModelChange)="onBundeslaenderDropDownListSelected($event)">
     <option value="" selected>select a Bundesland</option>
-    <option *ngFor="let bundesland of bundeslaender" [value]="bundesland">{{ bundesland }}</option>
+    @for (bundesland of bundeslaender; track bundesland) {
+      <option [value]="bundesland">{{ bundesland }}</option>
+    }
   </select>
 </div>
 
 <!-- Error message display -->
-<div *ngIf="climateAnalyserResponseDto?.errorMsg">
-  <p>ErrorMsg: {{ climateAnalyserResponseDto?.errorMsg }}</p>
-</div>
+@if (climateAnalyserResponseDto?.errorMsg) {
+  <div>
+    <p>ErrorMsg: {{ climateAnalyserResponseDto?.errorMsg }}</p>
+  </div>
+}
 
 <!-- Form: year inputs + submit (AC-F10: GPS inputs removed, AC-F12: submit disabled) -->
 <div>
@@ -82,61 +90,63 @@
       [title]="hasSelection ? '' : 'Bitte Rechteck zeichnen oder Bundesland wählen'">
       Submit
     </button>
-    <span *ngIf="!hasSelection" class="submit-hint">
-      &nbsp;Bitte Rechteck zeichnen oder Bundesland wählen
-    </span>
+    @if (!hasSelection) {
+      <span class="submit-hint">
+        &nbsp;Bitte Rechteck zeichnen oder Bundesland wählen
+      </span>
+    }
   </form>
 </div>
 
 <!-- AC-F13: Results table (unchanged) -->
 <table class="table">
   <thead class="thead-light">
-  <tr>
-    <th scope="col">{{ climateAnalyserResponseDto?.originYear }}</th>
-    <th scope="col">Januar</th>
-    <th scope="col">Februar</th>
-    <th scope="col">März</th>
-    <th scope="col">April</th>
-    <th scope="col">Mai</th>
-    <th scope="col">Juni</th>
-    <th scope="col">Juli</th>
-    <th scope="col">August</th>
-    <th scope="col">September</th>
-    <th scope="col">Oktober</th>
-    <th scope="col">November</th>
-    <th scope="col">Dezember</th>
-  </tr>
+    <tr>
+      <th scope="col">{{ climateAnalyserResponseDto?.originYear }}</th>
+      <th scope="col">Januar</th>
+      <th scope="col">Februar</th>
+      <th scope="col">März</th>
+      <th scope="col">April</th>
+      <th scope="col">Mai</th>
+      <th scope="col">Juni</th>
+      <th scope="col">Juli</th>
+      <th scope="col">August</th>
+      <th scope="col">September</th>
+      <th scope="col">Oktober</th>
+      <th scope="col">November</th>
+      <th scope="col">Dezember</th>
+    </tr>
   </thead>
   <tbody>
-  <tr>
-    <th scope="row">Climate:</th>
-    <td>{{ climateAnalyserResponseDto?.original?.januar }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.februar }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.maerz }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.april }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.mai }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.juni }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.juli }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.august }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.september }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.oktober }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.november }}</td>
-    <td>{{ climateAnalyserResponseDto?.original?.dezember }}</td>
-  </tr>
-  <tr>
-    <th scope="row">Compare:</th>
-    <td>{{ climateAnalyserResponseDto?.compare?.januar }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.februar }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.maerz }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.april }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.mai }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.juni }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.juli }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.august }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.september }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.oktober }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.november }}</td>
-    <td>{{ climateAnalyserResponseDto?.compare?.dezember }}</td>
-  </tr>
+    <tr>
+      <th scope="row">Climate:</th>
+      <td>{{ climateAnalyserResponseDto?.original?.januar }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.februar }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.maerz }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.april }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.mai }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.juni }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.juli }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.august }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.september }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.oktober }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.november }}</td>
+      <td>{{ climateAnalyserResponseDto?.original?.dezember }}</td>
+    </tr>
+    <tr>
+      <th scope="row">Compare:</th>
+      <td>{{ climateAnalyserResponseDto?.compare?.januar }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.februar }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.maerz }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.april }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.mai }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.juni }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.juli }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.august }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.september }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.oktober }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.november }}</td>
+      <td>{{ climateAnalyserResponseDto?.compare?.dezember }}</td>
+    </tr>
   </tbody>
 </table>
