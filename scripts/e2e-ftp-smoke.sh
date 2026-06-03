@@ -57,10 +57,17 @@ docker run -d --name "$DB" --network "$NET" --network-alias db \
   -e MYSQL_ROOT_PASSWORD="$DB_ROOT" -e MYSQL_DATABASE="$DB_NAME" \
   -e MYSQL_USER="$DB_USER" -e MYSQL_PASSWORD="$DB_PASS" \
   mysql:8.0 >/dev/null
-log "warte auf MySQL ready"
-for i in $(seq 1 40); do
-  docker exec "$DB" mysqladmin ping -uroot -p"$DB_ROOT" >/dev/null 2>&1 && break
-  sleep 3; [ "$i" = 40 ] && fail "MySQL nicht ready"
+log "warte auf MySQL ready (init-restart-sicher)"
+# MySQL 8.0 macht beim Erst-Init einen internen Temp-Server-Restart. mysqladmin ping ist
+# schon während der Init-Phase "alive", der echte Server lehnt aber kurz Verbindungen ab
+# → App-Flyway bekäme "Connection refused". Erst nach dem 2. "ready for connections" +
+# erfolgreicher echter Query ist der Server stabil erreichbar.
+for i in $(seq 1 60); do
+  ready=$(docker logs "$DB" 2>&1 | grep -c 'ready for connections' || true)
+  if [ "${ready:-0}" -ge 2 ] && docker exec "$DB" mysql -uroot -p"$DB_ROOT" -e 'SELECT 1' >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2; [ "$i" = 60 ] && fail "MySQL nicht ready"
 done
 
 log "App-Container starten ($IMAGE)"
