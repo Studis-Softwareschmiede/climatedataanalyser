@@ -3,7 +3,7 @@ import {ApiService} from '../shared/api.service';
 import {GpsPoint} from './model/GpsPoint';
 import {ClimateAnalyserResponseDto} from './model/ClimateAnalyserResponseDto';
 import {HttpEventType} from '@angular/common/http';
-import {FormBuilder, FormControl, FormGroup} from '@angular/forms';
+import {UntypedFormBuilder, UntypedFormControl, UntypedFormGroup} from '@angular/forms';
 import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 import * as L from 'leaflet';
@@ -23,7 +23,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   bundeslaender: Array<string> | null = null;
   selectedBundesland: string = '';
   climateAnalyserResponseDto: ClimateAnalyserResponseDto | null = null;
-  angForm!: FormGroup;
+  angForm!: UntypedFormGroup;
 
   // Map state — public so template can bind [leafletLayer]="drawnItems"
   leafletOptions!: L.MapOptions;
@@ -39,12 +39,12 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   private previewLayer: L.Rectangle | null = null;
 
   private map: L.Map | null = null;
-  private fb: FormBuilder;
+  private fb: UntypedFormBuilder;
 
   // Lifecycle: unsubscribe all observables on destroy + tear down Leaflet map.
   private destroy$ = new Subject<void>();
 
-  constructor(private apiService: ApiService, fb: FormBuilder, private zone: NgZone) {
+  constructor(private apiService: ApiService, fb: UntypedFormBuilder, private zone: NgZone) {
     this.fb = fb;
     this.createForm();
     this.initLeafletOptions();
@@ -52,12 +52,12 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
 
   createForm() {
     this.angForm = this.fb.group({
-      gps1lat: new FormControl(''),
-      gps1long: new FormControl(''),
-      gps2lat: new FormControl(''),
-      gps2long: new FormControl(''),
-      yearO: new FormControl('1989'),
-      yearC: new FormControl('2018')
+      gps1lat: new UntypedFormControl(''),
+      gps1long: new UntypedFormControl(''),
+      gps2lat: new UntypedFormControl(''),
+      gps2long: new UntypedFormControl(''),
+      yearO: new UntypedFormControl('1989'),
+      yearC: new UntypedFormControl('2018')
     });
   }
 
