@@ -1,0 +1,37 @@
+# TLS-Ingress-Overlay (Caddy, Auto-HTTPS) — über docker-compose.prod.yml legen:
+#
+#   export APP_VERSION=1.2.3 APP_DOMAIN=climate.example.org
+#   docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
+#
+# Voraussetzungen auf dem VPS:
+#  - DNS-A/AAAA-Record für $APP_DOMAIN zeigt auf die VPS-IP (Let's Encrypt prüft das).
+#  - Ports 80 + 443 in der Firewall offen; 8092 NICHT öffentlich (Caddy ist der Eingang).
+#
+# Hinweis: `!override` ersetzt die ports-Liste der Basis (statt anzuhängen) und braucht
+# Docker Compose v2.24+. Damit bindet die App nur noch auf Loopback (lokales Debugging),
+# während Caddy 80/443 terminiert und intern zu app:8092 proxyt.
+
+services:
+  app:
+    ports: !override
+      - "127.0.0.1:${APP_PORT:-8092}:8092"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN muss gesetzt sein, z.B. export APP_DOMAIN=climate.example.org}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # Zertifikate persistent (sonst LE-Rate-Limit bei jedem Recreate)
+      - caddy_config:/config
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
