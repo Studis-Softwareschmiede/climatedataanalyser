@@ -1,0 +1,49 @@
+# Zero-Config Quick Start — App + DB in EINER Datei, EIN Befehl.
+#
+#   curl -O https://raw.githubusercontent.com/Studis-Softwareschmiede/climatedataanalyser/master/docker-compose.simple.yml
+#   docker compose -f docker-compose.simple.yml up -d
+#
+# Danach: http://<host>:8092 — Flyway migriert beim Boot selbst.
+# Daten laden (einmalig): curl "http://<host>:8092/api/database/batchImportStart?withFTP=true"
+#
+# BEWUSSTE Vereinfachungen (für "läuft sofort", nicht für gehärtete Prod):
+#  - Default-Passwörter inline → KEIN .env nötig. Unkritisch, weil die DB KEINEN Host-Port
+#    hat (nur container-intern erreichbar). Für echte Exposition: Passwörter ändern.
+#  - Image-Tag :latest (auto-aktuell bei `docker compose pull`) statt gepinnt.
+#  - KEIN TLS (nur http:8092). Für HTTPS/Domain/Backups → docker-compose.prod.yml +
+#    docker-compose.caddy.yml (siehe docs/deployment.md) oder eine PaaS wie Coolify.
+
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: CLIMATE
+      MARIADB_USER: climate
+      MARIADB_PASSWORD: climate
+      MARIADB_ROOT_PASSWORD: rootclimate
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+  app:
+    image: ghcr.io/studis-softwareschmiede/climatedataanalyser:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/CLIMATE?zeroDateTimeBehavior=CONVERT_TO_NULL&serverTimezone=Europe/Berlin"
+      SPRING_DATASOURCE_USERNAME: climate
+      SPRING_DATASOURCE_PASSWORD: climate
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75"
+    ports:
+      - "8092:8092"
+
+volumes:
+  db_data: {}

@@ -1,5 +1,26 @@
 # Deployment
 
+Drei Wege, je nach Anspruch:
+- **Quick Start** (1 Befehl, zum Ausprobieren) — unten.
+- **Gehärtete Prod** (gepinnt, HTTPS, Backups) — Abschnitt „Produktion (VPS + Compose)".
+- **Coolify** (Self-hosted PaaS, „läuft von selbst") — Abschnitt „Coolify".
+
+## Quick Start (ein Befehl, ohne Konfiguration)
+
+Auf einem Host mit Docker:
+
+```bash
+curl -O https://raw.githubusercontent.com/Studis-Softwareschmiede/climatedataanalyser/master/docker-compose.simple.yml
+docker compose -f docker-compose.simple.yml up -d
+```
+
+App auf `http://<host>:8092`. Daten einmalig laden:
+`curl "http://<host>:8092/api/database/batchImportStart?withFTP=true"`.
+
+`docker-compose.simple.yml` bündelt App + MariaDB in einer Datei mit Default-Creds
+(DB nur container-intern, kein Host-Port), `:latest` und ohne TLS. Für Produktion die
+nächsten Abschnitte.
+
 ## Voraussetzungen
 
 Erstelle `.env.db` im Projektverzeichnis (nie committen — steht in `.gitignore`):
@@ -114,6 +135,46 @@ gunzip -c /var/backups/climate/climate-YYYYmmdd-HHMMSS.sql.gz \
 ```
 
 Für echte Disaster-Recovery die Dumps zusätzlich **off-host** spiegeln (Objektspeicher/rsync).
+
+## Coolify (Self-hosted PaaS — „läuft von selbst")
+
+[Coolify](https://coolify.io) ist eine quelloffene, selbst-gehostete PaaS (Heroku-/Netlify-
+Alternative), die du **einmalig auf deinem eigenen VPS** installierst. Danach deployst du
+nur noch über eine Web-Oberfläche: Coolify übernimmt **Reverse-Proxy, automatisches
+Let's-Encrypt-TLS, Domains, Env-Variablen, persistente Volumes, Auto-Deploy bei git-Push,
+DB-Backups, Logs und Updates** — genau die „von-selbst"-Teile, die man sonst manuell baut.
+
+### Einmalig: Coolify installieren
+Auf einem frischen VPS (empfohlen ≥ 2 Cores / 4 GB RAM):
+
+```bash
+curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
+```
+
+Dann `http://<VPS-IP>:8000` öffnen und Admin-Konto anlegen.
+
+### Diese App in Coolify deployen (Docker-Compose-Weg)
+1. **Project → Environment → „+ New Resource" → „Docker Compose"**.
+2. Quelle wählen:
+   - **Public Repository**: `https://github.com/Studis-Softwareschmiede/climatedataanalyser`,
+     Compose-Pfad `docker-compose.simple.yml` (oder `docker-compose.prod.yml`), **oder**
+   - **Compose direkt einfügen** (Inhalt von `docker-compose.simple.yml` reinpasten).
+3. Beim `app`-Service eine **Domain** eintragen (z. B. `climate.deine-domain.tld`) und den
+   **Port 8092** angeben → Coolify provisioniert TLS automatisch über seinen Traefik-Proxy.
+   (DNS-A-Record der Domain vorher auf die VPS-IP zeigen lassen.)
+4. **Deploy** klicken → Coolify zieht das Image, startet `db` + `app`, verdrahtet HTTPS.
+5. Daten laden: `curl "https://climate.deine-domain.tld/api/database/batchImportStart?withFTP=true"`.
+
+### Was Coolify dir abnimmt
+- **TLS-Zertifikate + Renewal** und Reverse-Proxy (kein Caddy/manuelles Setup nötig).
+- **Auto-Deploy**: optionaler Webhook → ein git-Push auf master deployt neu.
+- **Backups**: für den DB-Service ein geplantes Backup einrichten (statt `scripts/db-backup.sh` von Hand).
+- **Logs / Restart / Rollback** per Klick.
+
+> Trade-off: Du betreibst eine zusätzliche Plattform (Coolify selbst) auf dem VPS. Dafür
+> entfällt das manuelle Compose/TLS/Backup-Handwerk. Für „einmal aufsetzen, dann nur noch
+> klicken" ist das der bequemste Weg; wer puren Docker-Minimalismus will, bleibt bei
+> `docker-compose.prod.yml` + Caddy.
 
 ## Datenbank-Credentials
 
