@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # End-to-End-Runtime-Smoke: lädt das App-Image in einen Container, fährt eine echte
-# MySQL-8.0-DB daneben hoch, startet den DWD-FTP-Import und prüft, dass die DB befüllt wird.
+# MariaDB-11-DB daneben hoch (dieselbe Engine wie docker-compose.prod.yml → "getestet ==
+# deployed"), startet den DWD-FTP-Import und prüft, dass die DB befüllt wird.
 #
 # DECKT GENAU DIE LÜCKE AB, die die H2-Unit-Tests strukturell nicht sehen
 # (Flyway-Modul/Dialekt/Treiber, gepacktes Image, non-root-Schreibpfade, Batch-Reader,
@@ -26,7 +27,7 @@ JOB_TIMEOUT="${JOB_TIMEOUT:-600}"
 ASYNC_MAX="${ASYNC_MAX:-10}"
 
 NET=e2e-cda-net
-DB=e2e-cda-mysql
+DB=e2e-cda-mariadb
 APP=e2e-cda-app
 DB_NAME=CLIMATE
 DB_USER=climateRUN
@@ -51,23 +52,23 @@ if [ "$BUILD" = "1" ]; then
   docker build -t "$IMAGE" "$ROOT"
 fi
 
-log "Netz + MySQL 8.0 (echte Engine, kein H2)"
+log "Netz + MariaDB 11 (echte Engine wie prod, kein H2)"
 docker network create "$NET" >/dev/null
 docker run -d --name "$DB" --network "$NET" --network-alias db \
-  -e MYSQL_ROOT_PASSWORD="$DB_ROOT" -e MYSQL_DATABASE="$DB_NAME" \
-  -e MYSQL_USER="$DB_USER" -e MYSQL_PASSWORD="$DB_PASS" \
-  mysql:8.0 >/dev/null
-log "warte auf MySQL ready (init-restart-sicher)"
-# MySQL 8.0 macht beim Erst-Init einen internen Temp-Server-Restart. mysqladmin ping ist
-# schon während der Init-Phase "alive", der echte Server lehnt aber kurz Verbindungen ab
-# → App-Flyway bekäme "Connection refused". Erst nach dem 2. "ready for connections" +
-# erfolgreicher echter Query ist der Server stabil erreichbar.
+  -e MARIADB_ROOT_PASSWORD="$DB_ROOT" -e MARIADB_DATABASE="$DB_NAME" \
+  -e MARIADB_USER="$DB_USER" -e MARIADB_PASSWORD="$DB_PASS" \
+  mariadb:11 >/dev/null
+log "warte auf MariaDB ready (init-restart-sicher)"
+# MariaDB macht beim Erst-Init ein internes Bootstrap; `mariadb-admin ping` antwortet
+# schon währenddessen, der echte Server lehnt aber kurz Verbindungen ab → App-Flyway
+# bekäme "Connection refused". healthcheck.sh --connect --innodb_initialized (bringt das
+# MariaDB-Image mit, identisch zur docker-compose.prod.yml) signalisiert erst, wenn die
+# Engine wirklich startklar ist.
 for i in $(seq 1 60); do
-  ready=$(docker logs "$DB" 2>&1 | grep -c 'ready for connections' || true)
-  if [ "${ready:-0}" -ge 2 ] && docker exec "$DB" mysql -uroot -p"$DB_ROOT" -e 'SELECT 1' >/dev/null 2>&1; then
+  if docker exec "$DB" healthcheck.sh --connect --innodb_initialized >/dev/null 2>&1; then
     break
   fi
-  sleep 2; [ "$i" = 60 ] && fail "MySQL nicht ready"
+  sleep 2; [ "$i" = 60 ] && fail "MariaDB nicht ready"
 done
 
 log "App-Container starten ($IMAGE, mem=${APP_MEM:-2g})"
@@ -96,7 +97,7 @@ docker logs "$APP" 2>&1 | grep -iE 'Successfully applied .* migrations|Migrating
 
 # '|| true': bei leerem Resultat liefert 'grep -v' exit 1 → würde unter 'set -e' das Skript
 # killen. Tritt beim async-Launcher auf, wenn beim 1. Poll noch keine Job-Zeile existiert.
-q() { docker exec "$DB" mysql -uroot -p"$DB_ROOT" -N "$DB_NAME" -e "$1" 2>/dev/null | grep -v Warning || true; }
+q() { docker exec "$DB" mariadb -uroot -p"$DB_ROOT" -N "$DB_NAME" -e "$1" 2>/dev/null | grep -v Warning || true; }
 
 log "FTP-Import triggern (withFTP=$WITHFTP) + Async-Launcher-Check (<= ${ASYNC_MAX}s)"
 t=$(curl -s -m "$ASYNC_MAX" -o /dev/null -w '%{time_total}' \
