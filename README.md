@@ -4,14 +4,27 @@ Spring Boot (Java 21) + Angular 21 Anwendung zur Analyse deutscher Klimadaten (D
 Ein einziges Docker-Image (API + eingebettetes Frontend), MariaDB als Datenbank,
 Schema-Migration via Flyway beim Boot.
 
-## Quick Start (ein Befehl)
+## Quick Start
 
-Auf einem Host mit Docker — kein Klonen, kein Konfigurieren:
+Auf einem Host mit Docker — kein Klonen, kein Konfigurieren. Lege den Stack nach
+`/opt/climatedataanalyser` (FHS-Konvention für self-hosted Apps) und übereigne dir das
+Verzeichnis, damit du **ohne `sudo` und nicht als root** arbeitest:
 
 ```bash
+sudo mkdir -p /opt/climatedataanalyser
+sudo chown $USER:$USER /opt/climatedataanalyser
+cd /opt/climatedataanalyser
 curl -O https://raw.githubusercontent.com/Studis-Softwareschmiede/climatedataanalyser/master/docker-compose.simple.yml
 docker compose -f docker-compose.simple.yml up -d
 ```
+
+> **Nicht in `/home` ausführen** — dort fehlt die Schreibberechtigung (`curl … Permission denied`).
+> In `/opt/climatedataanalyser` liegt nur die Compose-Datei; die DB-Daten leben in einem
+> Docker Named Volume (`…_db_data`, verwaltet unter `/var/lib/docker/volumes/`) und
+> überstehen ein `docker compose down && up`.
+>
+> Sagt `docker` „permission denied" auf `docker.sock`: einmalig `sudo usermod -aG docker $USER`
+> + neu einloggen — dann läuft Docker ohne `sudo`.
 
 → App läuft auf `http://<host>:8092` (Flyway migriert selbst). Daten einmalig laden:
 
