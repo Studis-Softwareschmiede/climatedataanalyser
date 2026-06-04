@@ -22,7 +22,7 @@ jobs:
     # passten nicht in 30min/900s → Lauf brach mit Job STARTED@240k ab (DB schrieb noch).
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: E2E FTP smoke
         env:
           WITHFTP: ${{ github.event.inputs.withFTP != 'false' }}
