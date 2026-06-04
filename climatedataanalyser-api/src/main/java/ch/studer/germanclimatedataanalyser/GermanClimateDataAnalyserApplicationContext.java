@@ -13,15 +13,12 @@ import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbLoadInforma
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbLoadInformationServiceImpl;
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbStatusInformationService;
 import ch.studer.germanclimatedataanalyser.service.ui.dbController.DbStatusInformationServiceImpl;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
-import java.util.Properties;
 
 @Configuration
 public class GermanClimateDataAnalyserApplicationContext {
@@ -72,13 +69,9 @@ public class GermanClimateDataAnalyserApplicationContext {
         return new DbStatusInformationServiceImpl(jdbcTemplate);
     }
 
-    @ConditionalOnMissingBean
-    @Bean
-    public BuildProperties buildProperties() {
-        Properties properties = new Properties();
-        properties.put("group", "ch.climateDataAnalyser");
-        properties.put("artifact", "Climate Data Analyser");
-        properties.put("version", "not-jarred");
-        return new BuildProperties(properties);
-    }
+    // KEIN Fallback-BuildProperties-Bean mehr: ein @ConditionalOnMissingBean in dieser
+    // User-@Configuration wird VOR der Auto-Config verarbeitet → die Bedingung sah immer
+    // "kein Bean" → der Fallback preemptete die echte, aus build-info.properties auto-
+    // konfigurierte BuildProperties (→ Version immer "not-jarred"). Der AppInfo-Controller
+    // injiziert BuildProperties jetzt optional (ObjectProvider) und kommt ohne diese Bean aus.
 }
