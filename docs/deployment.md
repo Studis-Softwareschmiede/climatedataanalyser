@@ -17,21 +17,103 @@ MARIADB_PASSWORD=<geheim>
 docker compose up -d
 ```
 
-`docker-compose.yml` — startet db (Port `${DB_PORT:-3306}` auf dem Host erreichbar zum Debuggen), migrations und app.
+`docker-compose.yml` — startet db (Port `${DB_PORT:-3306}` auf dem Host erreichbar zum Debuggen) und app. Schema-Migrationen laufen via Flyway beim App-Boot (kein separater migrations-Service, siehe Abschnitt „Schema-Migrationen").
 
-## Produktion
+## Produktion (VPS + Compose)
+
+Empfohlenes Ziel: **ein einzelner kleiner VPS** mit Docker + Compose. Die App ist ein
+einziges Image (Spring Boot + eingebettetes Angular + API), die DB läuft als MariaDB-
+Container daneben. Die App ist zustandslos/wegwerfbar (jederzeit neu aus ghcr), das
+**DB-Volume ist das Wertvolle** → persistenter Speicher + Backup (s. u.).
+
+> **Single-Replica:** Der Batch-Import schreibt lokal nach `/app/data` und ist heap-intensiv —
+> die App ist bewusst **nicht** horizontal skalierbar. Genau eine App-Instanz, dafür mit
+> Memory-Limit (Default 2g, via `APP_MEM_LIMIT`).
 
 ```bash
+export APP_VERSION=1.2.3            # NIE latest in prod — Pflicht, sonst bricht `up` ab
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-`docker-compose.prod.yml` — identischer Stack, aber der db-Service exportiert **keinen** Host-Port. Die Datenbank ist ausschliesslich compose-intern erreichbar (`expose: ["3306"]`). Der App-Port (`${APP_PORT:-8092}`) bleibt nach aussen offen.
+`docker-compose.prod.yml`:
+- App läuft auf einem **fixen** `APP_VERSION`-Tag (kein `:latest`, kein `build:`) → kein
+  versehentliches Floaten bei `docker compose pull`.
+- db hat **keinen** Host-Port (`expose: ["3306"]`, nur compose-intern, Spec §15-R7).
+- **Memory-Limits** (`APP_MEM_LIMIT`/`DB_MEM_LIMIT`) + `MaxRAMPercentage=75` → kein OOM-Kill
+  beim Vollimport.
+- **Healthcheck** auf 8092; **named Volumes** `db_data` (DB) + `app_data` (FTP-Arbeitsdir).
 
-## Migrations-Runner (manuell)
+### VPS-Erstinstallation (Runbook)
 
 ```bash
-docker compose [-f docker-compose.prod.yml] run --rm migrations
+# 1) Docker + Compose-Plugin (Debian/Ubuntu)
+curl -fsSL https://get.docker.com | sh
+
+# 2) Code + Secrets
+sudo mkdir -p /opt/climatedataanalyser && cd /opt/climatedataanalyser
+git clone https://github.com/Studis-Softwareschmiede/climatedataanalyser.git .
+cp .env.db.example .env.db && chmod 600 .env.db   # dann mit echten Secrets füllen
+
+# 3) Firewall: nur SSH + 80/443 offen, 8092/3306 NICHT öffentlich
+sudo ufw allow OpenSSH && sudo ufw allow 80,443/tcp && sudo ufw enable
+
+# 4) Start mit TLS (siehe nächster Abschnitt) oder ohne:
+export APP_VERSION=1.2.3
+docker compose -f docker-compose.prod.yml up -d
 ```
+
+**Update auf neue Version:** `export APP_VERSION=1.2.4 && docker compose -f docker-compose.prod.yml pull app && docker compose -f docker-compose.prod.yml up -d`.
+
+## TLS-Ingress (Caddy, automatisches HTTPS)
+
+Die App spricht nur HTTP:8092. Für eine öffentliche Domain terminiert **Caddy** TLS
+(Let's Encrypt, auto-renew) und proxyt intern zu `app:8092` — die App wird dann nur noch
+auf Loopback gebunden (kein öffentlicher 8092-Port).
+
+```bash
+export APP_VERSION=1.2.3 APP_DOMAIN=climate.example.org   # DNS-A-Record auf die VPS-IP!
+docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
+```
+
+Voraussetzungen: DNS-A/AAAA für `$APP_DOMAIN` → VPS-IP, Ports 80+443 offen. Config liegt
+in `deploy/Caddyfile` (inkl. HSTS/Hardening-Header). Zertifikate persistieren im Volume
+`caddy_data` (sonst LE-Rate-Limit bei jedem Recreate).
+
+*Alternative ohne offene Inbound-Ports:* Cloudflare Tunnel (`cloudflared`) — der agent-flow
+`/preview`-VPS-Pfad nutzt das bereits; dann entfällt der Caddy-Overlay und 80/443 müssen nicht
+offen sein.
+
+## Schema-Migrationen
+
+Es gibt **keinen** separaten Migrations-Service. Flyway läuft **im App-Container beim Boot**
+(`spring.flyway.enabled=true`; `V1__init` → `V2__…` unter
+`climatedataanalyser-api/src/main/resources/db/migration`). Neue Migration = neue `V*`-Datei
+im Image → wird beim nächsten App-Start automatisch appliziert. Bei mehreren Migrationen sperrt
+Flyway die DB (Single-Replica macht das unkritisch).
+
+## Backups
+
+Die DB ist das einzige Wertvolle (Daten via DWD-FTP reproduzierbar, aber Minuten teuer →
+745k Records). `scripts/db-backup.sh` dumpt die laufende MariaDB (`mariadb-dump
+--single-transaction`), gzippt und rotiert (`RETAIN_DAYS`, Default 14).
+
+```bash
+# manuell
+BACKUP_DIR=/var/backups/climate scripts/db-backup.sh
+
+# nightly via cron (crontab -e):
+30 3 * * * cd /opt/climatedataanalyser && BACKUP_DIR=/var/backups/climate scripts/db-backup.sh >> /var/log/climate-backup.log 2>&1
+```
+
+**Restore:**
+
+```bash
+gunzip -c /var/backups/climate/climate-YYYYmmdd-HHMMSS.sql.gz \
+  | docker compose -f docker-compose.prod.yml exec -T db \
+      mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"
+```
+
+Für echte Disaster-Recovery die Dumps zusätzlich **off-host** spiegeln (Objektspeicher/rsync).
 
 ## Datenbank-Credentials
 

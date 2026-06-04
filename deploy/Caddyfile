@@ -1,0 +1,19 @@
+# Caddy Reverse-Proxy für climatedataanalyser — automatisches HTTPS (Let's Encrypt).
+# $APP_DOMAIN kommt aus der Umgebung (siehe docker-compose.caddy.yml).
+# Caddy erreicht die App über das interne Compose-Netz unter `app:8092` — die App
+# selbst muss KEINEN öffentlichen Port mappen (Caddy ist der einzige Eingang: 80/443).
+
+{$APP_DOMAIN} {
+	encode gzip zstd
+
+	# Optionales Hardening-Header-Set (defensiv; bei Bedarf erweitern).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	reverse_proxy app:8092
+}

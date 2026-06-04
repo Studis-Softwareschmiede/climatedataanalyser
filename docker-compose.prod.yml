@@ -1,12 +1,22 @@
-# Production Compose — climatedataanalyser
+# Production Compose — climatedataanalyser  (Ziel: einzelner VPS + docker compose)
 #
 # Unterschied zu docker-compose.yml (Dev):
-#  - db-Service hat KEIN `ports:` — nur `expose: ["3306"]` (Compose-intern).
-#    Die DB ist damit nur für andere Services im selben Compose-Netzwerk
-#    erreichbar und NICHT vom Host aus (Spec §15-R7).
-#  - app-Service ist nach außen erreichbar (ports bleibt, das ist der Einstiegspunkt).
+#  - app läuft auf einem FIXEN Image-Tag (APP_VERSION) statt :latest und OHNE `build:`
+#    → kein versehentliches Floaten bei `docker compose pull` (Spec/Doku: prod MUSS pinnen).
+#  - db-Service hat KEIN `ports:` — nur `expose: ["3306"]` (nur compose-intern, Spec §15-R7).
+#  - Memory-Limits + MaxRAMPercentage: der DWD-Vollimport (745k Records) ist heap-intensiv
+#    und wurde ohne Limit schon OOM-gekillt. Limit + Heap-Prozent halten die JVM im Rahmen.
+#  - App-Healthcheck (TCP auf 8092) → restart/Orchestrierung kennt den Ready-Zustand.
+#  - Named Volume für das FTP-Arbeitsverzeichnis (/app/data) — überlebt Container-Recreate,
+#    füllt nicht die Container-Schreibschicht.
 #
-# Start: docker compose -f docker-compose.prod.yml up -d
+# Start (ohne TLS — App direkt auf Host-Port):
+#   export APP_VERSION=1.2.3            # NIE latest in prod
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Mit TLS-Ingress (Caddy, Auto-HTTPS — siehe docker-compose.caddy.yml + docs/deployment.md):
+#   export APP_VERSION=1.2.3 APP_DOMAIN=climate.example.org
+#   docker compose -f docker-compose.prod.yml -f docker-compose.caddy.yml up -d
 
 services:
   db:
@@ -24,6 +34,8 @@ services:
       start_period: 30s
     expose:
       - "3306"
+    # Speicher-Leitplanke für die DB (Buffer-Pool etc.); auf VPS-Größe anpassen.
+    mem_limit: ${DB_MEM_LIMIT:-1g}
 
   # Schema-Migration läuft IM App-Container beim Boot via Flyway
   # (spring.flyway.enabled=true; V1__init → V2__indexes_and_hardening unter
@@ -33,8 +45,9 @@ services:
   # V2 "Table STATION doesn't exist". Entfernt als Nachzug zu #17 (skeleton→flyway).
 
   app:
-    image: ghcr.io/studis-softwareschmiede/climatedataanalyser:latest
-    build: .
+    # FIXES Versions-Tag erzwingen — kein :latest in prod. `?err` bricht `up` ab,
+    # wenn APP_VERSION nicht gesetzt ist (verhindert versehentliches Floaten).
+    image: ghcr.io/studis-softwareschmiede/climatedataanalyser:${APP_VERSION:?APP_VERSION muss auf ein Release-Tag gesetzt sein, z.B. export APP_VERSION=1.2.3}
     restart: unless-stopped
     depends_on:
       db:
@@ -43,8 +56,28 @@ services:
       - .env.db
     environment:
       SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/CLIMATE?zeroDateTimeBehavior=CONVERT_TO_NULL&serverTimezone=Europe/Berlin"
+      # JVM-Heap an das Container-Limit koppeln (statt unbegrenzt zu wachsen → OOMKilled).
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 ${JAVA_EXTRA_OPTS:-}"
+    # Vollimport heap-intensiv: Default 2g; via APP_MEM_LIMIT an die VPS-Größe anpassen.
+    mem_limit: ${APP_MEM_LIMIT:-2g}
+    memswap_limit: ${APP_MEM_LIMIT:-2g}
+    volumes:
+      # FTP-Arbeitsverzeichnis (download/FTPData, InputFiles, Unzip…) persistent + außerhalb
+      # der Container-Schreibschicht. Nicht kritisch (reproduzierbar via Re-Import), aber sauber.
+      - app_data:/app/data
+    healthcheck:
+      # temurin:21-jre ist Ubuntu-basiert → /bin/bash vorhanden. TCP-Probe auf den
+      # Server-Port ohne Zusatz-Tools (kein curl/wget im Slim-JRE nötig).
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8092' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     ports:
+      # Ohne TLS-Overlay: App direkt auf dem Host-Port. MIT docker-compose.caddy.yml
+      # übernimmt Caddy 80/443 und proxyt intern → dieser Block wird dort überschrieben.
       - "${APP_PORT:-8092}:8092"
 
 volumes:
   db_data: {}
+  app_data: {}
