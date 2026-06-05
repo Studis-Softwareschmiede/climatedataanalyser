@@ -83,7 +83,7 @@
         <span><i class="fas fa-tasks me-2"></i>Pipeline-Status</span>
         @if (isLoading) {
           <small class="text-light">
-            <i class="fas fa-sync fa-spin me-1"></i> refreshing every 0.5s
+            <i class="fas fa-sync fa-spin me-1"></i> aktualisiert alle 5 s
           </small>
         }
       </div>
@@ -148,7 +148,7 @@
         </ul>
       </div>
       <div class="card-footer text-muted small">
-        Pipeline = 5 Steps fix. Status live aktualisiert (Polling 0.5s während Lauf, 2s idle).
+        Pipeline = 5 Steps fix. Status live aktualisiert (alle 5 s während ein Job läuft).
         Backend-Source: <code>BATCH_STEP_EXECUTION</code>.
       </div>
     </div>

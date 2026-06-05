@@ -1,18 +1,15 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
 import {ApiService} from '../shared/api.service';
-import { HttpEventType } from '@angular/common/http';
+import {HttpEventType} from '@angular/common/http';
 import {DbLoadResponseDto, DbLoadSteps, SkippedRecord} from './model/DbLoadResponseDto';
-import {DbStatus} from '../shared/dbStatusEnum';
 import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
 // Spring-Batch BatchStatus-Werte, die "Job läuft gerade" bedeuten.
-// Polling läuft solange dbLoadResponseDto.status in dieser Menge ist.
 const RUNNING_STATES = new Set(['STARTING', 'STARTED', 'UNKNOWN']);
 
-// Polling-Intervalle: schnell während Job läuft, langsam idle.
-const POLL_FAST_MS = 500;
-const POLL_IDLE_MS = 2000;
+// Dashboard-Refresh-Rate während ein Job läuft (Requirement: alle 5 s).
+const POLL_MS = 5000;
 
 @Component({
     selector: 'app-database',
@@ -23,16 +20,18 @@ const POLL_IDLE_MS = 2000;
 export class DatabaseComponent implements OnInit, OnDestroy {
   message: string = '';
   dbLoadResponseDto: DbLoadResponseDto | null = null;
-  currentDbLoadStatus: DbStatus | null = null;
   useFTP: boolean = false;
-  isLoading: boolean = false;
   isClearing: boolean = false;
 
-  // Force-Polling-Window: nach loadDataBase()-Trigger pollen wir mindestens
-  // FORCE_POLL_WINDOW_MS lang, auch wenn der Backend-Status (noch) NEVER_RUN
-  // oder FAILED zurückgibt — Race-Condition zwischen Trigger und Job-Init.
+  // Live-Laufzeit: vom Server (elapsedSeconds) bei jedem Poll authoritativ gesetzt,
+  // dazwischen sekündlich hochgetickt → smoothe Uhr zwischen den 5s-Datenpolls.
+  displayElapsed: number = 0;
+
+  // Kurzes Force-Window direkt nach einem Trigger: weiterpollen, bis der neue Job
+  // serverseitig in BATCH_JOB_EXECUTION sichtbar ist (Race zwischen Trigger-Return
+  // und Job-Insert). Danach bestimmt allein der Server-Status, ob weiter gepollt wird.
   private forcePollUntil: number = 0;
-  private static readonly FORCE_POLL_WINDOW_MS = 30000;
+  private static readonly FORCE_WINDOW_MS = 15000;
 
   // Pipeline-Skeleton: fixe 5 Steps, auch wenn das Backend noch keine Job-Run-Daten hat.
   private static readonly PIPELINE_SKELETON = [
@@ -44,49 +43,61 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   ];
 
   private destroy$ = new Subject<void>();
-
-  // Live-Laufzeit: vom Backend (elapsedSeconds) bei jedem Poll authoritativ gesetzt,
-  // dazwischen sekündlich hochgetickt → smoothe Anzeige auch bei 2s-Idle-Polling.
-  displayElapsed: number = 0;
-  private tickHandle: any = null;
+  private poller: any = null;     // 5s-Datenpoller (nur aktiv solange RUNNING/Force)
+  private tickHandle: any = null; // 1s-Uhr-Ticker
 
   constructor(private apiService: ApiService) {
   }
 
-  ngOnInit() {
-    this.refreshStatus();
+  ngOnInit(): void {
     this.tickHandle = setInterval(() => {
-      if (this.isJobRunning()) this.displayElapsed++;
+      if (this.isRunning()) this.displayElapsed++;
     }, 1000);
+    // Initial-Fetch spiegelt den ECHTEN Server-Zustand: läuft ein Job → Live-Tracking
+    // aufnehmen (auch nach Browser-Refresh), sonst Ergebnis/„nie geladen" zeigen.
+    this.pollOnce().then(() => {
+      if (this.isRunning() || Date.now() < this.forcePollUntil) this.startPolling();
+    });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
+    this.stopPolling();
     if (this.tickHandle) { clearInterval(this.tickHandle); this.tickHandle = null; }
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  /**
-   * Pollt /api/database/ einmal sofort. Dann nur weiter pollen solange ein Job AKTUELL
-   * läuft (Spring-Batch-Status STARTING/STARTED). Schnelles Polling (500ms) während
-   * Job läuft — fängt auch sub-Sek-Runs ab.
-   */
-  async refreshStatus(): Promise<void> {
-    await this.pollOnce();
-    // Schleife: pollen solange Job läuft ODER force-poll-window nicht abgelaufen
-    // (fängt die Race-Condition direkt nach Trigger ab: Job ist noch nicht in
-    // BATCH_JOB_EXECUTION, status liefert NEVER_RUN/FAILED, ohne forcePollUntil
-    // würde der Loop sofort enden und alle weiteren Updates verpassen).
-    while ((this.isJobRunning() || Date.now() < this.forcePollUntil) && !this.destroy$.closed) {
-      await new Promise(r => setTimeout(r, POLL_FAST_MS));
-      await this.pollOnce();
-    }
-    this.isLoading = false;
+  // ───────────────────────── abgeleiteter Zustand (Server = Wahrheit) ─────────────────────────
+
+  /** True solange ein Job-Run läuft (Server-Status STARTING/STARTED). */
+  isRunning(): boolean {
+    return RUNNING_STATES.has(this.dbLoadResponseDto?.status || '');
   }
 
-  private isJobRunning(): boolean {
-    const status = this.dbLoadResponseDto?.status || '';
-    return RUNNING_STATES.has(status);
+  /** Lädt gerade (Job läuft ODER Force-Window nach Trigger noch offen). */
+  get isLoading(): boolean {
+    return this.isRunning() || Date.now() < this.forcePollUntil;
+  }
+
+  /** Buttons disabled, solange irgendetwas läuft (Single-Job-Anker). */
+  isBusy(): boolean {
+    return this.isLoading || this.isClearing;
+  }
+
+  // ───────────────────────── Polling (robust, terminiert sauber) ─────────────────────────
+
+  private startPolling(): void {
+    if (this.poller || this.destroy$.closed) return;
+    this.poller = setInterval(async () => {
+      await this.pollOnce();
+      // Stoppen, sobald terminal UND Force-Window abgelaufen — sonst läuft der Poller
+      // zuverlässig weiter (behebt "Refresh nur einmalig").
+      if (!this.isRunning() && Date.now() >= this.forcePollUntil) this.stopPolling();
+    }, POLL_MS);
+  }
+
+  private stopPolling(): void {
+    if (this.poller) { clearInterval(this.poller); this.poller = null; }
   }
 
   private pollOnce(): Promise<void> {
@@ -101,18 +112,11 @@ export class DatabaseComponent implements OnInit, OnDestroy {
           },
           next: (value) => {
             if (value.type === HttpEventType.Response && value.body != null) {
-              const raw = value.body.isDbLoaded;
-              const status: DbStatus | undefined =
-                Object.prototype.hasOwnProperty.call(DbStatus, raw)
-                  ? DbStatus[raw as keyof typeof DbStatus]
-                  : undefined;
-              this.currentDbLoadStatus = status ?? null;
               this.dbLoadResponseDto = value.body;
-              // Laufzeit authoritativ vom Server übernehmen (Server-Zeit, kein Uhren-Skew).
+              // Laufzeit authoritativ vom Server (Server-Zeit, kein Uhren-Skew).
               if (value.body.elapsedSeconds != null) {
                 this.displayElapsed = value.body.elapsedSeconds;
               }
-              this.isLoading = this.isJobRunning();
               this.message = this.statusMessage();
             }
           },
@@ -120,13 +124,99 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Anzeige für einen NEUEN Lauf zurücksetzen: Timer 0, alle Steps pending, Status STARTING. */
+  private resetForNewRun(): void {
+    this.displayElapsed = 0;
+    this.dbLoadResponseDto = {
+      ...(this.dbLoadResponseDto ?? new DbLoadResponseDto()),
+      status: 'STARTING',
+      elapsedSeconds: 0,
+      lastLoad: this.dbLoadResponseDto?.lastLoad ?? '',
+      dbLoadSteps: [],   // Skeleton → alle 'pending'
+    } as DbLoadResponseDto;
+  }
+
   /**
-   * Status-Message kombiniert DbStatusEnum + aktuellen Job-Status.
+   * Anzeige für die Truncate-Phase leeren — Timer 0, Steps pending, ABER status NICHT
+   * 'STARTING' (sonst würde der isBusy()-Guard das anschliessende loadDataBase() blocken).
    */
+  private clearDisplay(): void {
+    this.displayElapsed = 0;
+    this.dbLoadResponseDto = {
+      ...(this.dbLoadResponseDto ?? new DbLoadResponseDto()),
+      status: 'NEVER_RUN',
+      elapsedSeconds: undefined,
+      lastLoad: '',
+      dbLoadSteps: [],
+    } as DbLoadResponseDto;
+  }
+
+  // ───────────────────────── Aktionen ─────────────────────────
+
+  loadDataBase(): void {
+    if (this.isBusy()) { this.message = '⚠ Es läuft bereits ein Job — bitte warten.'; return; }
+
+    const ftp = this.useFTP ? 'true' : 'false';
+    this.resetForNewRun();
+    this.message = '⟳ Load wird gestartet…';
+    this.forcePollUntil = Date.now() + DatabaseComponent.FORCE_WINDOW_MS;
+    this.startPolling();
+
+    this.apiService.loadDataBase(ftp)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => this.pollOnce(),
+        error: (err) => {
+          if (err?.status === 409) {
+            // Server lehnt ab: es läuft schon ein Job → kein neuer Lauf, nur tracken.
+            this.message = '⚠ Es läuft bereits ein Job.';
+          } else {
+            this.message = '⚠ Load-Trigger fehlgeschlagen — siehe Browser-Console.';
+            this.forcePollUntil = 0;
+            this.stopPolling();
+          }
+          this.pollOnce();
+        },
+      });
+  }
+
+  /** Truncate aller Tabellen, dann frischer Load. Nur wenn KEIN Job läuft (Single-Job-Anker). */
+  clearAndReload(): void {
+    if (this.isBusy()) { this.message = '⚠ Es läuft ein Job — Clear erst danach möglich.'; return; }
+    if (!confirm(
+      'Wirklich alle Daten + Job-History löschen und neu laden?\n\n' +
+      'Truncate auf: CLIMATE, MONTH_, STATION, WEATHER + alle BATCH_*-Tables.'
+    )) return;
+
+    this.isClearing = true;
+    this.clearDisplay();          // Anzeige leeren, aber NICHT 'STARTING' (sonst blockt loadDataBase)
+    this.message = '⟳ Truncate läuft…';
+
+    this.apiService.clearDatabase()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.isClearing = false;
+          this.message = '✓ Tabellen geleert — starte Re-Load…';
+          this.loadDataBase();
+        },
+        error: (err) => {
+          this.isClearing = false;
+          this.message = err?.status === 409
+            ? '⚠ Clear nicht möglich — es läuft gerade ein Job.'
+            : `⚠ Truncate fehlgeschlagen: ${err?.message || 'unbekannt'}`;
+          this.pollOnce();
+        },
+      });
+  }
+
+  // ───────────────────────── Anzeige-Helfer ─────────────────────────
+
+  /** Status-Message kombiniert Job-Status + Kontext. */
   private statusMessage(): string {
     const batchStatus = this.dbLoadResponseDto?.status || 'NEVER_RUN';
     if (RUNNING_STATES.has(batchStatus)) {
-      return '⟳ Job läuft gerade — Pipeline-Status aktualisiert sich live.';
+      return '⟳ Job läuft gerade — Pipeline-Status aktualisiert sich live (alle 5 s).';
     }
     if (batchStatus === 'FAILED') {
       const failedStep = this.failedStepName();
@@ -160,87 +250,13 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     return steps.reduce((sum, s) => sum + (parseInt(s.writeCount || '0', 10)), 0);
   }
 
-  loadDataBase(): void {
-    const ftp = this.useFTP ? 'true' : 'false';
-    this.isLoading = true;
-    this.message = '⟳ Triggering Load…';
-    // Neuer Lauf → Laufzeit-Anzeige auf 0 zurücksetzen (sonst zeigt sie die Zeit des
-    // vorigen Laufs, bis das erste Poll den neuen Job liefert).
-    this.displayElapsed = 0;
-    // Force-Polling für 30s — Race-Condition: Backend braucht 100-500ms bis Job
-    // im BATCH_JOB_EXECUTION sichtbar ist. Ohne Window stoppt Polling sofort.
-    this.forcePollUntil = Date.now() + DatabaseComponent.FORCE_POLL_WINDOW_MS;
-
-    // Sofort optimistische STARTING-Anzeige (inkl. elapsedSeconds=0, damit die
-    // "läuft seit"-Anzeige nicht kurz den alten Wert zeigt).
-    if (this.dbLoadResponseDto) {
-      this.dbLoadResponseDto = {
-        ...this.dbLoadResponseDto,
-        status: 'STARTING',
-        elapsedSeconds: 0,
-        dbLoadSteps: []  // Skeleton zeigt alle pending bis erstes Poll-Resultat
-      };
-    }
-
-    // FIRE-AND-FORGET: Backend blockiert mit SimpleJobLauncher (sync mode) die ganzen
-    // 5-8 Min bis Job durch ist. Wir warten NICHT auf complete, sondern starten Polling
-    // sofort parallel — sonst keine Live-Updates während der Job läuft.
-    this.apiService.loadDataBase(ftp)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        complete: () => {
-          // Job ist hier beendet. Ein letzter Poll holt den Final-Status falls
-          // der Loop schon gestoppt hat (Race-Condition unwahrscheinlich aber safe).
-          this.pollOnce();
-        },
-        error: () => {
-          this.message = '⚠ Load-Trigger fehlgeschlagen — siehe Browser-Console.';
-          this.isLoading = false;
-        },
-      });
-
-    // Polling SOFORT starten — parallel zum (blockierenden) Trigger-Request.
-    this.refreshStatus();
-  }
-
-  /**
-   * Truncated alle DB-Tabellen + BATCH_*-Tables, dann startet einen neuen Load
-   * (mit aktuellem useFTP-Wert).
-   */
-  clearAndReload(): void {
-    if (!confirm(
-      'Wirklich alle Daten + Job-History löschen und neu laden?\n\n' +
-      'Truncate auf: CLIMATE, MONTH_, STATION, WEATHER + alle BATCH_*-Tables.'
-    )) return;
-
-    this.isClearing = true;
-    this.message = '⟳ Truncate läuft…';
-
-    this.apiService.clearDatabase()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.isClearing = false;
-          this.message = '✓ Tabellen geleert — starte Re-Load…';
-          this.loadDataBase();
-        },
-        error: (err) => {
-          this.isClearing = false;
-          this.message = `⚠ Truncate fehlgeschlagen: ${err?.message || 'unbekannt'}`;
-        },
-      });
-  }
-
-  /**
-   * Mergt Pipeline-Skeleton mit Backend-Steps. Fehlende = 'pending'.
-   */
+  /** Mergt Pipeline-Skeleton mit Backend-Steps. Fehlende = 'pending'. */
   mergedSteps(): DbLoadSteps[] {
     const backendSteps: DbLoadSteps[] = this.dbLoadResponseDto?.dbLoadSteps || [];
     const backendByName = new Map<string, DbLoadSteps>();
     for (const s of backendSteps) {
       backendByName.set(s.stepName, s);
     }
-
     return DatabaseComponent.PIPELINE_SKELETON.map(name => {
       const found = backendByName.get(name);
       if (found) return found;
@@ -269,14 +285,11 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Gesamt-Laufzeit-Label: läuft → "läuft seit 2 m 25 s", fertig → "Dauer 6 m 12 s".
-   * Quelle: displayElapsed (Server-elapsedSeconds + 1s-Ticker).
-   */
+  /** Gesamt-Laufzeit-Label: läuft → "läuft seit 2 m 25 s", fertig → "Dauer 6 m 12 s". */
   elapsedLabel(): string {
     const es = this.dbLoadResponseDto?.elapsedSeconds;
     const status = this.dbLoadResponseDto?.status || '';
-    if (this.isJobRunning()) {
+    if (this.isRunning()) {
       return `läuft seit ${this.fmtDuration(this.displayElapsed)}`;
     }
     if (es != null && ['COMPLETED', 'FAILED', 'STOPPED', 'ABANDONED'].includes(status)) {
@@ -293,7 +306,7 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     return `${m} m ${s % 60} s`;
   }
 
-  /** Step-Dauer ("4m 35s", "0.3s", "—" wenn nicht gelaufen). */
+  /** Step-Dauer ("4m 35s", "0.3s", "" wenn nicht gelaufen). */
   stepDuration(step: DbLoadSteps): string {
     if (!step.startTime || !step.stepEndTime) return '';
     const start = new Date(step.startTime.replace(' ', 'T')).getTime();
@@ -302,12 +315,11 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     const secs = Math.round((end - start) / 1000);
     if (secs < 60) return `${secs}s`;
     const mins = Math.floor(secs / 60);
-    const remSecs = secs % 60;
-    return `${mins}m ${remSecs}s`;
+    return `${mins}m ${secs % 60}s`;
   }
 
   /**
-   * Read/Write-Anzeige: bei download/unzipFiles zeigt File-Counts aus den Verzeichnissen
+   * Read/Write-Anzeige: bei download/unzipFiles File-Counts aus den Verzeichnissen
    * (Spring-Batch trackt 0/0 für non-chunk Tasklets), sonst Standard r/w-Counts.
    */
   stepCounts(step: DbLoadSteps): string {
@@ -315,26 +327,21 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     const r = parseInt(step.readCount || '0', 10);
     const w = parseInt(step.writeCount || '0', 10);
 
-    // Spezial-Fall: download zeigt FTP-File-Count (aus /download/FTPData/)
     if (step.stepName === 'download' && (r === 0 && w === 0)) {
       const n = fc['ftpData'] || 0;
       return n > 0 ? `${n.toLocaleString('de-CH')} ZIP-Files` : 'no files';
     }
-    // Spezial-Fall: unzipFiles zeigt unzipped/inputFiles count
     if (step.stepName === 'unzipFiles' && (r === 0 && w === 0)) {
       const n = fc['inputFiles'] || fc['unzipedFiles'] || 0;
       return n > 0 ? `${n.toLocaleString('de-CH')} entpackte Files` : 'no files';
     }
-
     if (r === 0 && w === 0) return 'no-op';
     const fmt = (n: number) => n.toLocaleString('de-CH');
     return `${fmt(r)} read · ${fmt(w)} written`;
   }
 
-  /**
-   * Klick auf einen FAILED-Step zeigt seine EXIT_MESSAGE (Stack-Trace) im UI an.
-   * Toggle: zweiter Klick schließt.
-   */
+  // ───────────────────────── FAILED-Step-Details + Skip-Bericht ─────────────────────────
+
   expandedStep: string | null = null;
 
   toggleStepDetails(stepName: string): void {
@@ -345,10 +352,6 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     return this.expandedStep === stepName;
   }
 
-  /**
-   * Liefert die ersten Zeilen der EXIT_MESSAGE — Spring-Batch packt da den ganzen
-   * Stack-Trace rein, das ist im UI zu viel. Nehmen die ersten N Zeichen.
-   */
   shortExitMessage(step: DbLoadSteps): string {
     if (!step.exitMessage) return '';
     return step.exitMessage.length > 600
@@ -356,7 +359,6 @@ export class DatabaseComponent implements OnInit, OnDestroy {
       : step.exitMessage;
   }
 
-  /** Skip-Bericht: Records geschickt nach Step gruppiert für Anzeige. */
   skippedRecords(): SkippedRecord[] {
     return this.dbLoadResponseDto?.skippedRecords || [];
   }
@@ -365,7 +367,6 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     return this.skippedRecords().length;
   }
 
-  /** Skipped-Records pro Step (für Step-Detail-Anzeige). */
   skippedForStep(stepName: string): SkippedRecord[] {
     return this.skippedRecords().filter(r => r.stepName === stepName);
   }
