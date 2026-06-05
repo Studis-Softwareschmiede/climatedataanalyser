@@ -33,6 +33,13 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   private forcePollUntil: number = 0;
   private static readonly FORCE_WINDOW_MS = 15000;
 
+  // Kurzes Optimistik-Fenster direkt nach einem Trigger: solange der neue Job noch nicht
+  // in BATCH_JOB_EXECUTION steht (~0.5s), liefert der Server den ALTEN terminalen Zustand.
+  // In diesem Fenster werden nicht-laufende Poll-Antworten ignoriert → kein Flackern
+  // STARTING→NEVER_RUN→STARTED, der optimistische STARTING-Zustand bleibt stehen.
+  private optimisticUntil: number = 0;
+  private static readonly OPTIMISTIC_WINDOW_MS = 3000;
+
   // Pipeline-Skeleton: fixe 5 Steps, auch wenn das Backend noch keine Job-Run-Daten hat.
   private static readonly PIPELINE_SKELETON = [
     'download',
@@ -125,6 +132,13 @@ export class DatabaseComponent implements OnInit, OnDestroy {
           },
           next: (value) => {
             if (value.type === HttpEventType.Response && value.body != null) {
+              const incomingStatus = value.body.status || '';
+              // Optimistik-Fenster: alten/terminalen Server-Zustand ignorieren, bis der neue
+              // Job läuft → kein STARTING→NEVER_RUN→STARTED-Flackern. Sobald RUNNING kommt
+              // (oder das Fenster abläuft), wird die echte Antwort übernommen.
+              if (Date.now() < this.optimisticUntil && !RUNNING_STATES.has(incomingStatus)) {
+                return;
+              }
               this.dbLoadResponseDto = value.body;
               // Laufzeit authoritativ vom Server (Server-Zeit, kein Uhren-Skew).
               if (value.body.elapsedSeconds != null) {
@@ -177,7 +191,9 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     const ftp = this.useFTP ? 'true' : 'false';
     this.resetForNewRun();
     this.message = '⟳ Load wird gestartet…';
-    this.forcePollUntil = Date.now() + DatabaseComponent.FORCE_WINDOW_MS;
+    const now = Date.now();
+    this.forcePollUntil = now + DatabaseComponent.FORCE_WINDOW_MS;
+    this.optimisticUntil = now + DatabaseComponent.OPTIMISTIC_WINDOW_MS;
     this.startPolling();
     this.refreshView();   // SOFORT auf den Klick reagieren (Button→"Load läuft…", Status→STARTING)
 
