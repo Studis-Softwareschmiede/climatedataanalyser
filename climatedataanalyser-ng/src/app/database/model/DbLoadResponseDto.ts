@@ -6,6 +6,7 @@ export class DbLoadResponseDto {
   dbLoadSteps: Array<DbLoadSteps> = [];
   fileCounts?: { [key: string]: number };  // ftpData, unzipedFiles, inputFiles
   skippedRecords?: Array<SkippedRecord>;   // Bericht: alle übersprungenen Records dieses Job-Runs
+  elapsedSeconds?: number;                 // Laufzeit des aktuellen/letzten Runs (läuft → live; sonst Gesamtdauer)
 
 }
 
