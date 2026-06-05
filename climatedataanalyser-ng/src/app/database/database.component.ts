@@ -45,14 +45,23 @@ export class DatabaseComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
+  // Live-Laufzeit: vom Backend (elapsedSeconds) bei jedem Poll authoritativ gesetzt,
+  // dazwischen sekündlich hochgetickt → smoothe Anzeige auch bei 2s-Idle-Polling.
+  displayElapsed: number = 0;
+  private tickHandle: any = null;
+
   constructor(private apiService: ApiService) {
   }
 
   ngOnInit() {
     this.refreshStatus();
+    this.tickHandle = setInterval(() => {
+      if (this.isJobRunning()) this.displayElapsed++;
+    }, 1000);
   }
 
   ngOnDestroy() {
+    if (this.tickHandle) { clearInterval(this.tickHandle); this.tickHandle = null; }
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -99,6 +108,10 @@ export class DatabaseComponent implements OnInit, OnDestroy {
                   : undefined;
               this.currentDbLoadStatus = status ?? null;
               this.dbLoadResponseDto = value.body;
+              // Laufzeit authoritativ vom Server übernehmen (Server-Zeit, kein Uhren-Skew).
+              if (value.body.elapsedSeconds != null) {
+                this.displayElapsed = value.body.elapsedSeconds;
+              }
               this.isLoading = this.isJobRunning();
               this.message = this.statusMessage();
             }
@@ -151,15 +164,20 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     const ftp = this.useFTP ? 'true' : 'false';
     this.isLoading = true;
     this.message = '⟳ Triggering Load…';
+    // Neuer Lauf → Laufzeit-Anzeige auf 0 zurücksetzen (sonst zeigt sie die Zeit des
+    // vorigen Laufs, bis das erste Poll den neuen Job liefert).
+    this.displayElapsed = 0;
     // Force-Polling für 30s — Race-Condition: Backend braucht 100-500ms bis Job
     // im BATCH_JOB_EXECUTION sichtbar ist. Ohne Window stoppt Polling sofort.
     this.forcePollUntil = Date.now() + DatabaseComponent.FORCE_POLL_WINDOW_MS;
 
-    // Sofort optimistische STARTING-Anzeige.
+    // Sofort optimistische STARTING-Anzeige (inkl. elapsedSeconds=0, damit die
+    // "läuft seit"-Anzeige nicht kurz den alten Wert zeigt).
     if (this.dbLoadResponseDto) {
       this.dbLoadResponseDto = {
         ...this.dbLoadResponseDto,
         status: 'STARTING',
+        elapsedSeconds: 0,
         dbLoadSteps: []  // Skeleton zeigt alle pending bis erstes Poll-Resultat
       };
     }
@@ -249,6 +267,30 @@ export class DatabaseComponent implements OnInit, OnDestroy {
       case 'pending':
       default:          return 'far fa-circle text-muted';
     }
+  }
+
+  /**
+   * Gesamt-Laufzeit-Label: läuft → "läuft seit 2 m 25 s", fertig → "Dauer 6 m 12 s".
+   * Quelle: displayElapsed (Server-elapsedSeconds + 1s-Ticker).
+   */
+  elapsedLabel(): string {
+    const es = this.dbLoadResponseDto?.elapsedSeconds;
+    const status = this.dbLoadResponseDto?.status || '';
+    if (this.isJobRunning()) {
+      return `läuft seit ${this.fmtDuration(this.displayElapsed)}`;
+    }
+    if (es != null && ['COMPLETED', 'FAILED', 'STOPPED', 'ABANDONED'].includes(status)) {
+      return `Dauer ${this.fmtDuration(es)}`;
+    }
+    return '';
+  }
+
+  /** Sekunden → "Y s" oder "X m Y s". */
+  fmtDuration(secs: number): string {
+    const s = Math.max(0, Math.floor(secs));
+    if (s < 60) return `${s} s`;
+    const m = Math.floor(s / 60);
+    return `${m} m ${s % 60} s`;
   }
 
   /** Step-Dauer ("4m 35s", "0.3s", "—" wenn nicht gelaufen). */

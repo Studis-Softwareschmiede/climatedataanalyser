@@ -24,7 +24,10 @@ export interface BoundingBoxDto {
 export class ApiService {
 
   private BASE_URL = environment.BASE_URL + '/api';
-  private LOAD_DATABASE_URL = `${this.BASE_URL}/database/batchImportStart/`;
+  // KEIN Trailing-Slash: der Endpoint ist @GetMapping("/batchImportStart"). Spring Boot 3.x
+  // hat Trailing-Slash-Matching abgeschaltet → ".../batchImportStart/" → 404 → es startete
+  // NIE ein Job (Load schien "kaputt"). Ohne Slash → 200, Job startet.
+  private LOAD_DATABASE_URL = `${this.BASE_URL}/database/batchImportStart`;
   private LOAD_DATABASE_DATA_URL = `${this.BASE_URL}/database/`;
   private APPINFO_URL = `${this.BASE_URL}/appInfo/`;
   private ANALYTICS_INIT_URL = `${this.BASE_URL}/analytics/`;

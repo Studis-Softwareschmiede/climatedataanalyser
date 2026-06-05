@@ -9,10 +9,12 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +29,19 @@ public class DataBaseController {
     private final Job job;
     private final JdbcTemplate jdbcTemplate;
     private final SkippedRecordTracker skippedRecordTracker;
+
+    // Datei-Counts werden RELATIV zum Arbeitsverzeichnis gezählt — exakt dort, wohin der
+    // ClimateFtpDataDownloader/-Unziper schreibt (climate.path.downloadFolder, default "download").
+    // Vorher absolut hartkodiert ("/download/FTPData") → zielte am echten Ort (/app/data/download/…)
+    // vorbei → ftpData immer 0.
+    @Value("${climate.path.downloadFolder}")
+    private String downloadFolder;
+    @Value("${climate.path.ftpDataFolderName}")
+    private String ftpDataFolder;
+    @Value("${climate.path.unzipOutputFolderName}")
+    private String unzipOutputFolder;
+    @Value("${climate.path.inputFolderName}")
+    private String inputFolder;
 
     public DataBaseController(JobLauncher jobLauncher, DbLoadInformationService dbLoadInformationService,
                               Job job, JdbcTemplate jdbcTemplate, SkippedRecordTracker skippedRecordTracker) {
@@ -69,12 +84,47 @@ public class DataBaseController {
     DbLoadResponseDto dbLoadInformationRequest() {
         DbLoadResponseDto dto = this.dbLoadInformationService.getDbLoadInformation();
         dto.setFileCounts(collectFileCounts());
+        dto.setElapsedSeconds(computeElapsedSeconds());
         // Skipped-Records-Bericht: aktueller (= letzter) Job
         Long jobId = currentJobExecutionId();
         if (jobId != null) {
             dto.setSkippedRecords(skippedRecordTracker.getForJob(jobId));
         }
         return dto;
+    }
+
+    /**
+     * Laufzeit des aktuellen (= letzten) Job-Runs in Sekunden — läuft er noch, gegen NOW(),
+     * sonst die fixe Gesamtdauer (END_TIME − START_TIME). DB-seitig gerechnet (Server-Zeit →
+     * kein Client/Server-Uhren-Skew). null, wenn noch nie ein Job lief.
+     */
+    private Long computeElapsedSeconds() {
+        try {
+            Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT START_TIME, END_TIME FROM BATCH_JOB_EXECUTION " +
+                "WHERE JOB_EXECUTION_ID = (SELECT MAX(JOB_EXECUTION_ID) FROM BATCH_JOB_EXECUTION)");
+            LocalDateTime start = toLocalDateTime(row.get("START_TIME"));
+            if (start == null) return null;
+            // START_TIME wird über die Connection (serverTimezone=Europe/Berlin) als
+            // Berlin-wall-clock gespeichert — DB und JVM laufen aber in UTC. "now" daher
+            // ebenfalls in Europe/Berlin rechnen, sonst 2h-Offset (negativ → auf 0 geclampt).
+            // END_TIME ist gleich gespeichert → für fertige Jobs konsistent.
+            LocalDateTime end = toLocalDateTime(row.get("END_TIME"));
+            LocalDateTime reference = (end != null)
+                    ? end
+                    : LocalDateTime.now(java.time.ZoneId.of("Europe/Berlin"));
+            long secs = java.time.Duration.between(start, reference).getSeconds();
+            return Math.max(0, secs);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static LocalDateTime toLocalDateTime(Object value) {
+        if (value == null) return null;
+        if (value instanceof LocalDateTime) return (LocalDateTime) value;
+        if (value instanceof java.sql.Timestamp) return ((java.sql.Timestamp) value).toLocalDateTime();
+        return null;
     }
 
     private Long currentJobExecutionId() {
@@ -89,9 +139,9 @@ public class DataBaseController {
 
     private Map<String, Integer> collectFileCounts() {
         Map<String, Integer> counts = new HashMap<>();
-        counts.put("ftpData", countFilesIn("/download/FTPData"));
-        counts.put("unzipedFiles", countFilesIn("/download/UnzipedDataInputDataFiles"));
-        counts.put("inputFiles", countFilesIn("/download/InputFiles"));
+        counts.put("ftpData", countFilesIn(downloadFolder + "/" + ftpDataFolder));
+        counts.put("unzipedFiles", countFilesIn(downloadFolder + "/" + unzipOutputFolder));
+        counts.put("inputFiles", countFilesIn(downloadFolder + "/" + inputFolder));
         return counts;
     }
 

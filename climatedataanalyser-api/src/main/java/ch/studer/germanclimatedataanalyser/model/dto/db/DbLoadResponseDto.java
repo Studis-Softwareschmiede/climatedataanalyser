@@ -17,6 +17,7 @@ public class DbLoadResponseDto {
     private List<DbLoadStep> dbLoadSteps = new ArrayList<DbLoadStep>();
     private Map<String, Integer> fileCounts = new HashMap<>();  // ftpData, unzipedFiles, inputFiles → counts
     private List<SkippedRecord> skippedRecords = new ArrayList<>();  // Bericht: alle übersprungenen Records dieses Job-Runs
+    private Long elapsedSeconds;  // Laufzeit des aktuellen/letzten Job-Runs (läuft → gegen NOW(), sonst Gesamtdauer); null = nie gelaufen
 
     public DbLoadResponseDto(List<DbLoadRowMapper.JobExecutionInformation> dbLoadInformation, DbStatusEnum dbStatus) {
         this.mapToDbLoadResponsDto(dbLoadInformation, dbStatus);
@@ -60,6 +61,14 @@ public class DbLoadResponseDto {
 
     public void setFileCounts(Map<String, Integer> fileCounts) {
         this.fileCounts = fileCounts;
+    }
+
+    public Long getElapsedSeconds() {
+        return elapsedSeconds;
+    }
+
+    public void setElapsedSeconds(Long elapsedSeconds) {
+        this.elapsedSeconds = elapsedSeconds;
     }
 
     public List<SkippedRecord> getSkippedRecords() {

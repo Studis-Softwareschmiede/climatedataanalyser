@@ -19,6 +19,11 @@
               <span class="badge ms-2" [ngClass]="statusBadgeClass()">
                 {{ dbLoadResponseDto.status || 'NEVER_RUN' }}
               </span>
+              @if (elapsedLabel()) {
+                <span class="ms-2 text-muted">
+                  <i class="far fa-clock me-1"></i>{{ elapsedLabel() }}
+                </span>
+              }
             </div>
           </div>
         </div>
