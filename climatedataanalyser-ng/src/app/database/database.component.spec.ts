@@ -100,6 +100,26 @@ describe('DatabaseComponent (state machine)', () => {
     expect(c.message).toContain('Clear nicht möglich');
   });
 
+  it('statusMessage: COMPLETED ohne Records UND ohne Quelldateien → FTP-Handlungshinweis', () => {
+    setStatus('COMPLETED', {
+      dbLoadSteps: [{stepName: 'download', writeCount: '0', readCount: '0', stepStatus: 'COMPLETED'} as any],
+      fileCounts: {ftpData: 0, unzipedFiles: 0, inputFiles: 0},
+    });
+    const msg = (c as any).statusMessage();
+    expect(msg).toContain('keine Quelldateien');
+    expect(msg).toContain('FTP-Download');
+  });
+
+  it('statusMessage: COMPLETED mit geschriebenen Records → Erfolgsmeldung (kein FTP-Hinweis)', () => {
+    setStatus('COMPLETED', {
+      dbLoadSteps: [{stepName: 'import', writeCount: '1555967', readCount: '1555967', stepStatus: 'COMPLETED'} as any],
+      fileCounts: {ftpData: 1172, unzipedFiles: 20339, inputFiles: 0},
+    });
+    const msg = (c as any).statusMessage();
+    expect(msg).toContain('erfolgreich');
+    expect(msg).not.toContain('Quelldateien');
+  });
+
   it('fmtDuration formatiert Sekunden', () => {
     expect(c.fmtDuration(5)).toBe('5 s');
     expect(c.fmtDuration(145)).toBe('2 m 25 s');
