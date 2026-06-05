@@ -268,9 +268,17 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     }
     if (batchStatus === 'COMPLETED') {
       const total = this.totalRecords();
-      return total > 0
-        ? `✓ Letzter Lauf erfolgreich — ${total.toLocaleString('de-CH')} Records geschrieben.`
-        : '✓ Letzter Lauf erfolgreich (no-op, keine neuen Daten).';
+      if (total > 0) {
+        return `✓ Letzter Lauf erfolgreich — ${total.toLocaleString('de-CH')} Records geschrieben.`;
+      }
+      // 0 Records UND keine Quelldateien → kein echter Erfolg, sondern „nichts zu tun".
+      // Das passiert typisch nach einem Redeploy (FTP-Arbeitsverzeichnis leer) oder beim
+      // allerersten Load. Klarer Handlungshinweis statt eines irreführenden „erfolgreich".
+      if (this.noSourceFiles()) {
+        return '⚠ Lauf endete sofort — es liegen keine Quelldateien vor. ' +
+               'Bitte „FTP-Download vom DWD neu holen" ankreuzen und erneut laden.';
+      }
+      return '✓ Letzter Lauf erfolgreich (no-op, keine neuen Daten).';
     }
     if (batchStatus === 'STOPPED' || batchStatus === 'ABANDONED') {
       return '⏸ Letzter Load wurde abgebrochen.';
@@ -290,6 +298,16 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   private totalRecords(): number {
     const steps = this.dbLoadResponseDto?.dbLoadSteps || [];
     return steps.reduce((sum, s) => sum + (parseInt(s.writeCount || '0', 10)), 0);
+  }
+
+  /** True, wenn das Backend KEINE verarbeitbaren Quelldateien meldet (Download/Unzip/Input alle 0). */
+  private noSourceFiles(): boolean {
+    const fc = this.dbLoadResponseDto?.fileCounts;
+    if (!fc) {
+      return false;   // keine Info → keinen irreführenden Hinweis erzwingen
+    }
+    const total = (fc.ftpData || 0) + (fc.unzipedFiles || 0) + (fc.inputFiles || 0);
+    return total === 0;
   }
 
   /** Mergt Pipeline-Skeleton mit Backend-Steps. Fehlende = 'pending'. */

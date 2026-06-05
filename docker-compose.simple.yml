@@ -42,8 +42,16 @@ services:
       SPRING_DATASOURCE_USERNAME: climate
       SPRING_DATASOURCE_PASSWORD: climate
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75"
+    volumes:
+      # FTP-Arbeitsverzeichnis (Download/Unzip/Input) persistent halten — WORKDIR der App
+      # ist /app/data, dorthin schreibt der Batch-Import. OHNE dieses Volume sind die
+      # heruntergeladenen DWD-Files nach jedem `pull`/Container-Recreate weg → ein Re-Load
+      # OHNE FTP-Häkchen findet 0 Files und endet in ~1s als No-Op (sieht aus wie "nichts
+      # passiert"). Mit Volume überleben die Files den Redeploy → Re-Load ohne FTP funktioniert.
+      - app_data:/app/data
     ports:
       - "8092:8092"
 
 volumes:
   db_data: {}
+  app_data: {}
