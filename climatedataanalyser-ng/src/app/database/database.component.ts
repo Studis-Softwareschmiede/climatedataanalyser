@@ -1,4 +1,4 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {ChangeDetectorRef, Component, NgZone, OnDestroy, OnInit} from '@angular/core';
 import {ApiService} from '../shared/api.service';
 import {HttpEventType} from '@angular/common/http';
 import {DbLoadResponseDto, DbLoadSteps, SkippedRecord} from './model/DbLoadResponseDto';
@@ -46,18 +46,29 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   private poller: any = null;     // 5s-Datenpoller (nur aktiv solange RUNNING/Force)
   private tickHandle: any = null; // 1s-Uhr-Ticker
 
-  constructor(private apiService: ApiService) {
+  constructor(private apiService: ApiService, private cdr: ChangeDetectorRef, private zone: NgZone) {
   }
 
   ngOnInit(): void {
-    this.tickHandle = setInterval(() => {
-      if (this.isRunning()) this.displayElapsed++;
-    }, 1000);
+    // Ticker + Poller bewusst OUTSIDE Angular zone betreiben und nach jedem Update
+    // explizit Change Detection auslösen (refreshView). Sonst rendert die Seite bei
+    // setInterval-Updates nicht zuverlässig neu (beobachtet: Timer/Files eingefroren,
+    // erst Browser-Refresh half) — robust gegen Zone-Eigenheiten.
+    this.zone.runOutsideAngular(() => {
+      this.tickHandle = setInterval(() => {
+        if (this.isRunning()) { this.displayElapsed++; this.refreshView(); }
+      }, 1000);
+    });
     // Initial-Fetch spiegelt den ECHTEN Server-Zustand: läuft ein Job → Live-Tracking
     // aufnehmen (auch nach Browser-Refresh), sonst Ergebnis/„nie geladen" zeigen.
     this.pollOnce().then(() => {
       if (this.isRunning() || Date.now() < this.forcePollUntil) this.startPolling();
     });
+  }
+
+  /** View explizit neu rendern (für setInterval-/Promise-Updates ausserhalb der Zone). */
+  private refreshView(): void {
+    try { this.cdr.detectChanges(); } catch { /* CD evtl. schon laufend → ignorieren */ }
   }
 
   ngOnDestroy(): void {
@@ -88,12 +99,14 @@ export class DatabaseComponent implements OnInit, OnDestroy {
 
   private startPolling(): void {
     if (this.poller || this.destroy$.closed) return;
-    this.poller = setInterval(async () => {
-      await this.pollOnce();
-      // Stoppen, sobald terminal UND Force-Window abgelaufen — sonst läuft der Poller
-      // zuverlässig weiter (behebt "Refresh nur einmalig").
-      if (!this.isRunning() && Date.now() >= this.forcePollUntil) this.stopPolling();
-    }, POLL_MS);
+    this.zone.runOutsideAngular(() => {
+      this.poller = setInterval(async () => {
+        await this.pollOnce();
+        // Stoppen, sobald terminal UND Force-Window abgelaufen — sonst läuft der Poller
+        // zuverlässig weiter (behebt "Refresh nur einmalig").
+        if (!this.isRunning() && Date.now() >= this.forcePollUntil) this.stopPolling();
+      }, POLL_MS);
+    });
   }
 
   private stopPolling(): void {
@@ -118,6 +131,7 @@ export class DatabaseComponent implements OnInit, OnDestroy {
                 this.displayElapsed = value.body.elapsedSeconds;
               }
               this.message = this.statusMessage();
+              this.refreshView();   // Poller läuft outside zone → CD explizit triggern
             }
           },
         });
