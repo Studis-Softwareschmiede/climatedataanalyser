@@ -10,6 +10,8 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -69,7 +71,16 @@ public class DataBaseController {
     );
 
     @GetMapping("/batchImportStart")
-    public void handle(@RequestParam(value = "withFTP", defaultValue = "false") String withFTP) throws Exception {
+    public ResponseEntity<Map<String, Object>> handle(
+            @RequestParam(value = "withFTP", defaultValue = "false") String withFTP) throws Exception {
+
+        // Single-Job-Anker: läuft bereits ein Job, KEINEN zweiten starten (sonst
+        // konkurrierende Jobs → wirrer Status). 409 → Frontend zeigt "läuft schon".
+        if (isJobCurrentlyRunning()) {
+            log.info("batchImportStart ignoriert — es läuft bereits ein Job.");
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("running", true, "message", "Es läuft bereits ein Load-Job."));
+        }
 
         JobParameters jobParameters =
                 new JobParametersBuilder()
@@ -78,6 +89,22 @@ public class DataBaseController {
                         .toJobParameters();
         jobLauncher.run(job, jobParameters);
 
+        return ResponseEntity.accepted().body(Map.of("started", true));
+    }
+
+    /**
+     * True, solange ein Job-Run im Status STARTED/STARTING ist (Single-Job-Anker).
+     * Quelle: BATCH_JOB_EXECUTION (server-seitig, nicht aus optimistischer Browser-Annahme).
+     */
+    private boolean isJobCurrentlyRunning() {
+        try {
+            Integer running = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM BATCH_JOB_EXECUTION WHERE STATUS IN ('STARTED','STARTING')",
+                Integer.class);
+            return running != null && running > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @GetMapping("/")
@@ -166,8 +193,16 @@ public class DataBaseController {
      */
     @PostMapping("/clear")
     @Transactional
-    public Map<String, Object> clear() {
+    public ResponseEntity<Map<String, Object>> clear() {
         log.info("=== TRUNCATE TABLES requested via /api/database/clear ===");
+
+        // Single-Job-Anker: NICHT truncaten, solange ein Job läuft — sonst blockiert
+        // TRUNCATE auf den Tabellen-Locks des laufenden Imports ("Truncate hängt ewig").
+        if (isJobCurrentlyRunning()) {
+            log.info("clear() abgelehnt — es läuft ein Job.");
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("running", true, "message", "Clear nicht möglich, solange ein Job läuft."));
+        }
 
         // FK-Checks aushebeln (MySQL/MariaDB) — sonst FK-Constraint-Verletzungen zwischen BATCH_*-Tables
         jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 0");
@@ -203,7 +238,7 @@ public class DataBaseController {
         result.put("countsAfter", countsAfter);
         result.put("message", "All app and Spring-Batch tables truncated.");
         log.info("=== CLEAR DONE — counts: before={} after={} ===", countsBefore, countsAfter);
-        return result;
+        return ResponseEntity.ok(result);
     }
 
 }
