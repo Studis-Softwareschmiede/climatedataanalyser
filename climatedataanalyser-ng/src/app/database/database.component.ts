@@ -168,13 +168,18 @@ export class DatabaseComponent implements OnInit, OnDestroy {
   // ───────────────────────── Aktionen ─────────────────────────
 
   loadDataBase(): void {
-    if (this.isBusy()) { this.message = '⚠ Es läuft bereits ein Job — bitte warten.'; return; }
+    if (this.isBusy()) {
+      this.message = '⚠ Es läuft bereits ein Job — bitte warten.';
+      this.refreshView();
+      return;
+    }
 
     const ftp = this.useFTP ? 'true' : 'false';
     this.resetForNewRun();
     this.message = '⟳ Load wird gestartet…';
     this.forcePollUntil = Date.now() + DatabaseComponent.FORCE_WINDOW_MS;
     this.startPolling();
+    this.refreshView();   // SOFORT auf den Klick reagieren (Button→"Load läuft…", Status→STARTING)
 
     this.apiService.loadDataBase(ftp)
       .pipe(takeUntil(this.destroy$))
@@ -190,13 +195,18 @@ export class DatabaseComponent implements OnInit, OnDestroy {
             this.stopPolling();
           }
           this.pollOnce();
+          this.refreshView();
         },
       });
   }
 
   /** Truncate aller Tabellen, dann frischer Load. Nur wenn KEIN Job läuft (Single-Job-Anker). */
   clearAndReload(): void {
-    if (this.isBusy()) { this.message = '⚠ Es läuft ein Job — Clear erst danach möglich.'; return; }
+    if (this.isBusy()) {
+      this.message = '⚠ Es läuft ein Job — Clear erst danach möglich.';
+      this.refreshView();
+      return;
+    }
     if (!confirm(
       'Wirklich alle Daten + Job-History löschen und neu laden?\n\n' +
       'Truncate auf: CLIMATE, MONTH_, STATION, WEATHER + alle BATCH_*-Tables.'
@@ -205,6 +215,7 @@ export class DatabaseComponent implements OnInit, OnDestroy {
     this.isClearing = true;
     this.clearDisplay();          // Anzeige leeren, aber NICHT 'STARTING' (sonst blockt loadDataBase)
     this.message = '⟳ Truncate läuft…';
+    this.refreshView();           // sofort auf den Klick reagieren
 
     this.apiService.clearDatabase()
       .pipe(takeUntil(this.destroy$))
@@ -220,6 +231,7 @@ export class DatabaseComponent implements OnInit, OnDestroy {
             ? '⚠ Clear nicht möglich — es läuft gerade ein Job.'
             : `⚠ Truncate fehlgeschlagen: ${err?.message || 'unbekannt'}`;
           this.pollOnce();
+          this.refreshView();
         },
       });
   }
