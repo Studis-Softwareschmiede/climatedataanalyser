@@ -7,6 +7,11 @@ on:
   push:
     # main = new-project default; master = Fork-Default dieses Org-Forks
     branches: [main, master]
+    paths-ignore:
+      - 'board/**'
+      - 'docs/**'
+      - '**/*.md'
+      - '.claude/**'
 permissions:
   contents: read
   packages: write
